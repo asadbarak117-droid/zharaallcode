@@ -13,15 +13,17 @@ const conectRoutes = require("./routes/conectroute");
 const messageRoutes = require("./routes/messageroute");
 const consultationRoutes = require("./routes/consultationroute");
 const consultationRequestRoutes = require("./routes/consultationRequestRoute");
+const accountingRoutes = require("./routes/accountingroute");
 
 const app = express();
 
 app.use(cors());
-app.use(express.json());
 
 app.get("/api/health", (req, res) => {
   res.json({ message: "Backend is working" });
 });
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/home", homeRoutes);
 app.use("/api/productsection", productRoutes);
@@ -31,6 +33,9 @@ app.use("/api/messages", messageRoutes);
 
 app.use("/api/consultation-requests", consultationRequestRoutes);
 app.use("/api/beauty-problems", consultationRoutes);
+
+app.use("/api/accounting", accountingRoutes);
+app.use("/api/accounting", require("./routes/accountingroute"));
 
 const PORT = process.env.PORT || 5000;
 
