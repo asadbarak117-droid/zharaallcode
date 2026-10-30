@@ -1,3 +1,4 @@
+import React, { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import Mother from "./Admin/mother";
@@ -14,28 +15,40 @@ import DatabaseFront from "./Admin/databasefront";
 
 import PublicApp from "./Public/app1";
 
+// Check admin login
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem("adminToken");
 
-  return token ? children : <Navigate to="/admin/login" replace />;
+  if (!token || token === "undefined" || token === "null") {
+    localStorage.removeItem("adminToken");
+    return <Navigate to="/admin/login" replace />;
+  }
+
+  return children;
 }
 
+// Admin logout
+function AdminLogout() {
+  useEffect(() => {
+    localStorage.removeItem("adminToken");
+  }, []);
+
+  return <Navigate to="/admin/login" replace />;
+}
+
+// Admin routes
 function AdminRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/admin" replace />} />
 
-      <Route
-        path="/admin/login"
-        element={
-          localStorage.getItem("adminToken") ? (
-            <Navigate to="/admin" replace />
-          ) : (
-            <AdminLogin />
-          )
-        }
-      />
+      {/* Login */}
+      <Route path="/admin/login" element={<AdminLogin />} />
 
+      {/* Logout */}
+      <Route path="/admin/logout" element={<AdminLogout />} />
+
+      {/* Admin Dashboard */}
       <Route
         path="/admin"
         element={
@@ -45,6 +58,7 @@ function AdminRoutes() {
         }
       />
 
+      {/* Website Management */}
       <Route
         path="/admin/website"
         element={
@@ -54,6 +68,7 @@ function AdminRoutes() {
         }
       />
 
+      {/* Home Management */}
       <Route
         path="/admin/website/home"
         element={
@@ -63,6 +78,7 @@ function AdminRoutes() {
         }
       />
 
+      {/* Product Management */}
       <Route
         path="/admin/website/product"
         element={
@@ -72,6 +88,7 @@ function AdminRoutes() {
         }
       />
 
+      {/* Header Management */}
       <Route
         path="/admin/website/header"
         element={
@@ -81,6 +98,7 @@ function AdminRoutes() {
         }
       />
 
+      {/* Connect Management */}
       <Route
         path="/admin/website/connect"
         element={
@@ -90,6 +108,7 @@ function AdminRoutes() {
         }
       />
 
+      {/* Consultation Management */}
       <Route
         path="/admin/website/consultation"
         element={
@@ -99,6 +118,7 @@ function AdminRoutes() {
         }
       />
 
+      {/* Database */}
       <Route
         path="/admin/database"
         element={
@@ -108,6 +128,7 @@ function AdminRoutes() {
         }
       />
 
+      {/* User Management */}
       <Route
         path="/admin/users"
         element={
@@ -117,11 +138,13 @@ function AdminRoutes() {
         }
       />
 
+      {/* Unknown Admin Route */}
       <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>
   );
 }
 
+// Main App
 function App() {
   const isAdminDomain =
     window.location.hostname === "beautyonlineshop-manager.vercel.app";
