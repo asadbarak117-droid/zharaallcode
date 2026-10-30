@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import Mother from "./Admin/mother";
@@ -148,6 +148,21 @@ function AdminRoutes() {
 function App() {
   const isAdminDomain =
     window.location.hostname === "beautyonlineshop-manager.vercel.app";
+
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    if (isAdminDomain) {
+      // Require login whenever admin app opens or refreshes
+      localStorage.removeItem("adminToken");
+    }
+
+    setInitialized(true);
+  }, [isAdminDomain]);
+
+  if (!initialized) {
+    return null;
+  }
 
   return (
     <BrowserRouter>
