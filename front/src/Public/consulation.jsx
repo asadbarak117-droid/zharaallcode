@@ -360,15 +360,24 @@ function AIBeautyAssistant() {
         "How can I take care of my skin?",
       ];
 
-  const sendMessage = async (e) => {
-    e.preventDefault();
-
-    const text = input.trim();
+  const sendMessage = async (customMessage) => {
+    const text = (customMessage || input).trim();
 
     if (!text || loading) return;
 
+    if (text.length > 2000) {
+      setError(
+        isDari
+          ? "پیام باید کمتر از ۲۰۰۰ حرف باشد."
+          : "Message must be under 2000 characters.",
+      );
+      return;
+    }
+
+    const previousMessages = messages;
+
     const updatedMessages = [
-      ...messages,
+      ...previousMessages,
       {
         role: "user",
         content: text,
@@ -387,14 +396,18 @@ function AIBeautyAssistant() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          messages: updatedMessages,
-          language,
+          message: text,
+          language: isDari ? "fa" : "en",
+          history: previousMessages.map((item) => ({
+            role: item.role,
+            content: item.content,
+          })),
         }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
-      if (!response.ok) {
+      if (!response.ok || !data.success) {
         throw new Error(data.message || "Unable to connect to LEDORA AI.");
       }
 
@@ -402,8 +415,8 @@ function AIBeautyAssistant() {
         throw new Error("The AI did not return a response.");
       }
 
-      setMessages((previous) => [
-        ...previous,
+      setMessages([
+        ...updatedMessages,
         {
           role: "assistant",
           content: data.reply,
@@ -472,7 +485,10 @@ function AIBeautyAssistant() {
 
               <select
                 value={language}
-                onChange={(e) => setLanguage(e.target.value)}
+                onChange={(e) => {
+                  setLanguage(e.target.value);
+                  setError("");
+                }}
                 className="bg-slate-800 border border-slate-600 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-blue-400"
               >
                 <option value="English">English</option>
@@ -487,7 +503,7 @@ function AIBeautyAssistant() {
                 <button
                   key={index}
                   type="button"
-                  onClick={() => setInput(question)}
+                  onClick={() => sendMessage(question)}
                   disabled={loading}
                   className="text-left text-xs md:text-sm bg-white border border-blue-100 text-blue-700 rounded-full px-4 py-2 hover:bg-blue-50 transition disabled:opacity-50"
                 >
@@ -558,13 +574,17 @@ function AIBeautyAssistant() {
             )}
 
             <form
-              onSubmit={sendMessage}
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendMessage();
+              }}
               className="mt-5 flex gap-3 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm"
             >
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                maxLength={2000}
                 placeholder={
                   isDari
                     ? "سؤال خود را اینجا بنویسید..."
