@@ -1,9 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import { useState } from "react";
-
 import Mother from "./Admin/mother";
 import AdminLogin from "./Admin/AdminLogin";
+import UserManagement from "./Admin/UserManagement";
+
 import WebManagement from "./Admin/webmagment";
 import HomeManagement from "./Admin/homemangemet";
 import ProductManagement from "./Admin/productmagment";
@@ -103,7 +103,7 @@ function AdminRoutes() {
         path="/admin/users"
         element={
           <ProtectedRoute>
-            <div>User Management - Coming Soon</div>
+            <UserManagement />
           </ProtectedRoute>
         }
       />
