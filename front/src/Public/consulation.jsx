@@ -18,10 +18,16 @@ import {
   AlertCircle,
   Loader2,
   Phone,
+  Bot,
+  Send,
 } from "lucide-react";
+
 const PROBLEMS_API = "https://zharaallcode.onrender.com/api/beauty-problems";
+
 const REQUESTS_API =
   "https://zharaallcode.onrender.com/api/consultation-requests";
+
+const AI_CHAT_API = "https://zharaallcode.onrender.com/api/ai/chat";
 
 const services = [
   {
@@ -326,6 +332,279 @@ function SkinHairFinder() {
   );
 }
 
+function AIBeautyAssistant() {
+  const [language, setLanguage] = useState("English");
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const [messages, setMessages] = useState([
+    {
+      role: "assistant",
+      content:
+        "Hello! Welcome to LEDORA. I can help you with skincare advice and product recommendations. How can I help you today?",
+    },
+  ]);
+
+  const isDari = language === "Dari";
+
+  const suggestions = isDari
+    ? [
+        "برای پوست خشک چه روتینی مناسب است؟",
+        "برای پوست چرب چه محصولی پیشنهاد می‌کنی؟",
+        "چطور از پوست خود مراقبت کنم؟",
+      ]
+    : [
+        "What is a good routine for dry skin?",
+        "Recommend products for oily skin.",
+        "How can I take care of my skin?",
+      ];
+
+  const sendMessage = async (e) => {
+    e.preventDefault();
+
+    const text = input.trim();
+
+    if (!text || loading) return;
+
+    const updatedMessages = [
+      ...messages,
+      {
+        role: "user",
+        content: text,
+      },
+    ];
+
+    setMessages(updatedMessages);
+    setInput("");
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(AI_CHAT_API, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: updatedMessages,
+          language,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to connect to LEDORA AI.");
+      }
+
+      if (!data.reply) {
+        throw new Error("The AI did not return a response.");
+      }
+
+      setMessages((previous) => [
+        ...previous,
+        {
+          role: "assistant",
+          content: data.reply,
+        },
+      ]);
+    } catch (err) {
+      setError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetChat = () => {
+    setMessages([
+      {
+        role: "assistant",
+        content: isDari
+          ? "سلام! به LEDORA خوش آمدید. درباره مراقبت از پوست و محصولات فروشگاه می‌توانید از من سؤال کنید."
+          : "Hello! Welcome to LEDORA. Ask me about skincare advice and our products.",
+      },
+    ]);
+
+    setError("");
+    setInput("");
+  };
+
+  return (
+    <section className="py-20 bg-gradient-to-br from-blue-50 via-white to-slate-100">
+      <div className="max-w-6xl mx-auto px-6">
+        <div className="text-center max-w-2xl mx-auto mb-12">
+          <span className="inline-flex items-center gap-2 text-blue-600 font-semibold tracking-wider uppercase text-sm">
+            <Sparkles size={17} />
+            LEDORA AI BEAUTY ASSISTANT
+          </span>
+
+          <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mt-4">
+            Your Personal AI Beauty Consultant
+          </h2>
+
+          <p className="text-slate-600 mt-4 leading-7">
+            Get personalized skincare advice and discover beauty products that
+            match your needs.
+          </p>
+        </div>
+
+        <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
+          <div className="bg-slate-900 text-white p-5 md:p-6 flex flex-col sm:flex-row justify-between gap-4 sm:items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center">
+                <Bot size={27} />
+              </div>
+
+              <div>
+                <h3 className="font-bold text-lg">LEDORA Beauty AI</h3>
+
+                <p className="text-sm text-slate-300">
+                  Your skincare and product assistant
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs text-slate-300 mb-1">
+                Choose Language
+              </label>
+
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                className="bg-slate-800 border border-slate-600 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-blue-400"
+              >
+                <option value="English">English</option>
+                <option value="Dari">دری</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="p-4 md:p-6 bg-slate-50">
+            <div className="flex flex-wrap gap-2 mb-5">
+              {suggestions.map((question, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => setInput(question)}
+                  disabled={loading}
+                  className="text-left text-xs md:text-sm bg-white border border-blue-100 text-blue-700 rounded-full px-4 py-2 hover:bg-blue-50 transition disabled:opacity-50"
+                >
+                  {question}
+                </button>
+              ))}
+            </div>
+
+            <div
+              className="h-[380px] md:h-[430px] overflow-y-auto space-y-5 pr-1"
+              aria-live="polite"
+            >
+              {messages.map((message, index) => {
+                const isUser = message.role === "user";
+
+                return (
+                  <div
+                    key={index}
+                    className={`flex gap-3 ${
+                      isUser ? "flex-row-reverse" : "flex-row"
+                    }`}
+                  >
+                    <div
+                      className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center ${
+                        isUser
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-slate-900 text-white"
+                      }`}
+                    >
+                      {isUser ? <UserRound size={18} /> : <Bot size={19} />}
+                    </div>
+
+                    <div
+                      dir={isDari ? "rtl" : "auto"}
+                      className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-7 ${
+                        isUser
+                          ? "bg-blue-600 text-white rounded-tr-sm"
+                          : "bg-white border border-slate-200 text-slate-700 rounded-tl-sm shadow-sm"
+                      }`}
+                    >
+                      {message.content}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {loading && (
+                <div className="flex gap-3 items-center">
+                  <div className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center">
+                    <Bot size={19} />
+                  </div>
+
+                  <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 text-sm text-slate-500 flex items-center gap-2">
+                    <Loader2 size={17} className="animate-spin" />
+                    {isDari
+                      ? "هوش مصنوعی در حال پاسخ‌گویی است..."
+                      : "LEDORA AI is thinking..."}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {error && (
+              <div className="mt-4 flex items-start gap-2 rounded-xl bg-red-50 border border-red-100 p-3 text-sm text-red-700">
+                <AlertCircle size={18} className="flex-shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <form
+              onSubmit={sendMessage}
+              className="mt-5 flex gap-3 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm"
+            >
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={
+                  isDari
+                    ? "سؤال خود را اینجا بنویسید..."
+                    : "Ask about skincare or LEDORA products..."
+                }
+                dir={isDari ? "rtl" : "auto"}
+                disabled={loading}
+                className="min-w-0 flex-1 px-3 py-3 outline-none text-sm text-slate-800 disabled:bg-white"
+              />
+
+              <button
+                type="submit"
+                disabled={loading || !input.trim()}
+                aria-label="Send message"
+                className="w-12 h-12 flex-shrink-0 rounded-xl bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Send size={19} />
+              </button>
+            </form>
+
+            <div className="flex justify-between items-center mt-4 gap-3">
+              <p className="text-xs text-slate-400">
+                AI provides general beauty information, not medical diagnosis.
+              </p>
+
+              <button
+                type="button"
+                onClick={resetChat}
+                className="text-xs text-blue-600 hover:text-blue-800 font-semibold whitespace-nowrap"
+              >
+                New Chat
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function AdminBeautyProblems() {
   const [problems, setProblems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -338,7 +617,7 @@ function AdminBeautyProblems() {
       setLoading(true);
       setError("");
 
-      const response = await fetch(BEAUTY_PROBLEMS_API);
+      const response = await fetch(PROBLEMS_API);
 
       if (!response.ok) {
         throw new Error("Could not load beauty problems.");
@@ -638,7 +917,7 @@ export default function Consultation() {
     setSubmitError("");
 
     try {
-      const response = await fetch(CONSULTATION_REQUESTS_API, {
+      const response = await fetch(REQUESTS_API, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -780,7 +1059,11 @@ export default function Consultation() {
       </section>
 
       <SkinHairFinder />
+
+      <AIBeautyAssistant />
+
       <AdminBeautyProblems />
+
       <BeautyTips />
 
       <section id="booking" className="py-20 bg-slate-900 text-white">
@@ -808,6 +1091,7 @@ export default function Consultation() {
 
                   <div>
                     <p className="font-semibold">Flexible Consultation</p>
+
                     <p className="text-sm text-slate-400">
                       Choose your preferred date.
                     </p>
@@ -821,6 +1105,7 @@ export default function Consultation() {
 
                   <div>
                     <p className="font-semibold">WhatsApp Contact</p>
+
                     <p className="text-sm text-slate-400">
                       Add your WhatsApp number so we can contact you.
                     </p>
@@ -834,6 +1119,7 @@ export default function Consultation() {
 
                   <div>
                     <p className="font-semibold">Personalized Advice</p>
+
                     <p className="text-sm text-slate-400">
                       Advice based on your needs.
                     </p>

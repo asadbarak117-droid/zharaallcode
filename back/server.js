@@ -13,6 +13,7 @@ const consultationRoutes = require("./routes/consultationroute");
 const consultationRequestRoutes = require("./routes/consultationRequestRoute");
 const accountingRoutes = require("./routes/accountingroute");
 const adminRoutes = require("./routes/adminRoutes");
+const aiRoutes = require("./routes/aiRoutes");
 const app = express();
 
 app.use(cors());
@@ -31,6 +32,7 @@ app.use("/api/consultation-requests", consultationRequestRoutes);
 app.use("/api/beauty-problems", consultationRoutes);
 app.use("/api/accounting", accountingRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/ai", aiRoutes);
 
 const PORT = process.env.PORT || 5000;
 
