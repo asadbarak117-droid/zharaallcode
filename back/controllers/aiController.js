@@ -41,10 +41,7 @@ const chatWithAI = async (req, res) => {
     const { message, language = "en", history = [] } = req.body;
 
     if (!process.env.GROQ_API_KEY) {
-      return res.status(500).json({
-        success: false,
-        message: "Groq API key is not configured.",
-      });
+      throw new Error("GROQ_API_KEY is missing in environment variables.");
     }
 
     if (
@@ -77,8 +74,7 @@ const chatWithAI = async (req, res) => {
       : [];
 
     const completion = await groq.chat.completions.create({
-      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
-
+      model: process.env.GROQ_MODEL || "openai/gpt-oss-20b",
       messages: [
         {
           role: "system",
@@ -92,19 +88,28 @@ const chatWithAI = async (req, res) => {
           content: message.trim(),
         },
       ],
-
-      max_tokens: 700,
-      temperature: 0.7,
+      max_completion_tokens: 700,
+      temperature: 0.6,
+      include_reasoning: false,
     });
 
     const reply = completion.choices?.[0]?.message?.content;
 
+    if (!reply) {
+      throw new Error("Groq returned an empty response.");
+    }
+
     return res.status(200).json({
       success: true,
-      reply: reply || "Please try again.",
+      reply,
     });
   } catch (error) {
-    console.error("LEDORA GROQ ERROR:", error);
+    console.error("LEDORA GROQ ERROR:", {
+      message: error.message,
+      status: error.status,
+      code: error.code,
+      details: error.error,
+    });
 
     return res.status(500).json({
       success: false,
