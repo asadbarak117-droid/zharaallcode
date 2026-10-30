@@ -11,27 +11,43 @@ import DatabaseFront from "./Admin/databasefront";
 
 import PublicApp from "./Public/app1";
 
+function AdminRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/admin" replace />} />
+      <Route path="/admin" element={<Mother />} />
+
+      <Route path="/admin/website" element={<WebManagement />} />
+      <Route path="/admin/website/home" element={<HomeManagement />} />
+      <Route path="/admin/website/product" element={<ProductManagement />} />
+      <Route path="/admin/website/header" element={<HeaderManagement />} />
+      <Route path="/admin/website/connect" element={<ConectMagment />} />
+
+      <Route
+        path="/admin/website/consultation"
+        element={<ConsultationManagement />}
+      />
+
+      <Route path="/admin/database" element={<DatabaseFront />} />
+
+      <Route path="*" element={<Navigate to="/admin" replace />} />
+    </Routes>
+  );
+}
+
 function App() {
+  const isAdminDomain =
+    window.location.hostname === "beautyonlineshop-admin.vercel.app";
+
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/admin" element={<Mother />} />
-
-        <Route path="/admin/website" element={<WebManagement />} />
-        <Route path="/admin/website/home" element={<HomeManagement />} />
-        <Route path="/admin/website/product" element={<ProductManagement />} />
-        <Route path="/admin/website/header" element={<HeaderManagement />} />
-        <Route path="/admin/website/connect" element={<ConectMagment />} />
-
-        <Route
-          path="/admin/website/consultation"
-          element={<ConsultationManagement />}
-        />
-
-        <Route path="/admin/database" element={<DatabaseFront />} />
-
-        <Route path="/*" element={<PublicApp />} />
-      </Routes>
+      {isAdminDomain ? (
+        <AdminRoutes />
+      ) : (
+        <Routes>
+          <Route path="/*" element={<PublicApp />} />
+        </Routes>
+      )}
     </BrowserRouter>
   );
 }
