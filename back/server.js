@@ -22,7 +22,6 @@ app.use(express.urlencoded({ extended: true }));
 app.get("/api/health", (req, res) => {
   res.json({ message: "Backend is working" });
 });
-
 app.use("/api/home", homeRoutes);
 app.use("/api/productsection", productRoutes);
 app.use("/api/header", headerRoutes);
