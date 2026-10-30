@@ -37,7 +37,7 @@ function AdminRoutes() {
 
 function App() {
   const isAdminDomain =
-    window.location.hostname === "beautyonlineshop-admin.vercel.app";
+    window.location.hostname === "beautyonlineshop-manager.vercel.app";
 
   return (
     <BrowserRouter>
