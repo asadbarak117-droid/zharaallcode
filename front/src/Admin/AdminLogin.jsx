@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Mail, Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, ShieldCheck, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const styles = {
@@ -9,44 +9,54 @@ const styles = {
     justifyContent: "center",
     alignItems: "center",
     padding: "20px",
-    background: "linear-gradient(135deg, #eaf5fa, #f8f4f1, #e5f0f5)",
+    background: "#f1f5f9",
     fontFamily: "Arial, sans-serif",
   },
   card: {
     width: "100%",
     maxWidth: "430px",
     padding: "45px 38px",
-    background: "#fff",
+    background: "#ffffff",
     borderRadius: "22px",
-    boxShadow: "0 15px 50px rgba(43, 76, 95, 0.12)",
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 20px 50px rgba(2, 6, 23, 0.10)",
   },
   logo: {
-    width: "65px",
-    height: "65px",
+    width: "68px",
+    height: "68px",
     margin: "0 auto 22px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    color: "#fff",
-    background: "#729db4",
-    borderRadius: "18px",
+    color: "#020617",
+    background: "#38bdf8",
+    borderRadius: "19px",
+  },
+  brand: {
+    textAlign: "center",
+    color: "#64748b",
+    fontSize: "12px",
+    fontWeight: "600",
+    letterSpacing: "2px",
+    marginBottom: "10px",
   },
   title: {
     textAlign: "center",
     fontSize: "29px",
-    color: "#304b5a",
+    color: "#020617",
     margin: "0 0 10px",
+    fontWeight: "700",
   },
   subtitle: {
     textAlign: "center",
-    color: "#84949d",
+    color: "#64748b",
     fontSize: "14px",
-    lineHeight: 1.6,
+    lineHeight: 1.7,
     marginBottom: "32px",
   },
   label: {
     display: "block",
-    color: "#405966",
+    color: "#334155",
     fontSize: "14px",
     fontWeight: "600",
     marginBottom: "9px",
@@ -57,9 +67,10 @@ const styles = {
     gap: "11px",
     height: "52px",
     padding: "0 14px",
-    border: "1px solid #dce6eb",
+    border: "1px solid #cbd5e1",
     borderRadius: "11px",
     marginBottom: "22px",
+    background: "#ffffff",
   },
   input: {
     width: "100%",
@@ -67,12 +78,12 @@ const styles = {
     outline: "none",
     background: "transparent",
     fontSize: "14px",
-    color: "#304b5a",
+    color: "#020617",
   },
   eyeButton: {
     border: "none",
     background: "transparent",
-    color: "#729db4",
+    color: "#64748b",
     cursor: "pointer",
     display: "flex",
   },
@@ -81,15 +92,16 @@ const styles = {
     height: "52px",
     border: "none",
     borderRadius: "11px",
-    background: "#729db4",
-    color: "#fff",
+    background: "#38bdf8",
+    color: "#020617",
     fontSize: "16px",
-    fontWeight: "600",
+    fontWeight: "700",
     cursor: "pointer",
     marginTop: "5px",
+    transition: "0.2s",
   },
   error: {
-    color: "#c34b4b",
+    color: "#dc2626",
     fontSize: "13px",
     marginBottom: "15px",
   },
@@ -98,9 +110,14 @@ const styles = {
     justifyContent: "center",
     alignItems: "center",
     gap: "7px",
-    color: "#8a9ba4",
+    color: "#64748b",
     fontSize: "12px",
     marginTop: "28px",
+  },
+  divider: {
+    height: "1px",
+    background: "#e2e8f0",
+    marginTop: "25px",
   },
 };
 
@@ -160,8 +177,16 @@ function AdminLogin() {
     <div style={styles.page}>
       <div style={styles.card}>
         <div style={styles.logo}>
-          <ShieldCheck size={34} />
+          <ShieldCheck size={35} />
         </div>
+
+        <p style={styles.brand}>
+          <Sparkles
+            size={13}
+            style={{ display: "inline", marginRight: "5px" }}
+          />
+          LEDORA ADMIN
+        </p>
 
         <h1 style={styles.title}>Welcome Back</h1>
 
@@ -173,7 +198,7 @@ function AdminLogin() {
           <label style={styles.label}>Email Address</label>
 
           <div style={styles.inputBox}>
-            <Mail size={19} color="#729db4" />
+            <Mail size={19} color="#0ea5e9" />
 
             <input
               type="email"
@@ -189,7 +214,7 @@ function AdminLogin() {
           <label style={styles.label}>Password</label>
 
           <div style={styles.inputBox}>
-            <Lock size={19} color="#729db4" />
+            <Lock size={19} color="#0ea5e9" />
 
             <input
               type={showPassword ? "text" : "password"}
@@ -224,8 +249,10 @@ function AdminLogin() {
           </button>
         </form>
 
+        <div style={styles.divider} />
+
         <div style={styles.footer}>
-          <ShieldCheck size={16} />
+          <ShieldCheck size={16} color="#0ea5e9" />
           <span>Authorized Administrators Only</span>
         </div>
       </div>

@@ -9,17 +9,29 @@ import {
   Mail,
   X,
   RefreshCw,
+  Eye,
+  EyeOff,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  LockKeyhole,
 } from "lucide-react";
 
 const API_URL = "https://zharaallcode.onrender.com";
 
+const primaryButton =
+  "inline-flex items-center justify-center gap-2 rounded-xl bg-sky-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60";
+const secondaryButton =
+  "inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60";
+
 function UserManagement() {
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-
   const [showForm, setShowForm] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -43,12 +55,12 @@ function UserManagement() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Could not load users");
+        throw new Error(data.message || "Could not load users.");
       }
 
-      setAdmins(data);
+      setAdmins(Array.isArray(data) ? data : data.admins || data.data || []);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Could not load administrators.");
     } finally {
       setLoading(false);
     }
@@ -58,13 +70,14 @@ function UserManagement() {
     fetchAdmins();
   }, []);
 
-  const handleCreate = async (e) => {
-    e.preventDefault();
-
+  const handleCreate = async (event) => {
+    event.preventDefault();
     setMessage("");
     setError("");
 
     try {
+      setSubmitting(true);
+
       const response = await fetch(`${API_URL}/api/admin/users`, {
         method: "POST",
         headers: {
@@ -77,22 +90,18 @@ function UserManagement() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Could not create admin");
+        throw new Error(data.message || "Could not create admin.");
       }
 
-      setMessage("Admin created successfully.");
-
-      setForm({
-        name: "",
-        email: "",
-        password: "",
-      });
-
+      setMessage("Administrator created successfully.");
+      setForm({ name: "", email: "", password: "" });
+      setShowPassword(false);
       setShowForm(false);
-
-      fetchAdmins();
+      await fetchAdmins();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Could not create administrator.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -109,22 +118,20 @@ function UserManagement() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            isActive: !admin.isActive,
-          }),
+          body: JSON.stringify({ isActive: !admin.isActive }),
         },
       );
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Could not update status");
+        throw new Error(data.message || "Could not update status.");
       }
 
-      setMessage("Admin status updated.");
-      fetchAdmins();
+      setMessage("Administrator status updated successfully.");
+      await fetchAdmins();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Could not update administrator status.");
     }
   };
 
@@ -149,261 +156,407 @@ function UserManagement() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Could not delete admin");
+        throw new Error(data.message || "Could not delete admin.");
       }
 
-      setMessage("Admin deleted successfully.");
-      fetchAdmins();
+      setMessage("Administrator deleted successfully.");
+      await fetchAdmins();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Could not delete administrator.");
     }
   };
 
-  return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <div>
-          <div style={styles.titleRow}>
-            <div style={styles.iconBox}>
-              <Users size={25} />
-            </div>
+  const closeForm = () => {
+    setShowForm(false);
+    setShowPassword(false);
+    setForm({ name: "", email: "", password: "" });
+  };
 
+  const activeCount = admins.filter((admin) => admin.isActive).length;
+  const inactiveCount = admins.length - activeCount;
+
+  const statCard = (label, value, Icon) => (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-slate-500">{label}</p>
+        <span className="rounded-xl bg-sky-100 p-2 text-sky-600">
+          <Icon size={19} />
+        </span>
+      </div>
+      <p className="mt-3 text-3xl font-bold text-slate-950">{value}</p>
+    </div>
+  );
+
+  const messageBox = (text, type) =>
+    text && (
+      <div
+        className={`mb-5 flex items-start gap-3 rounded-xl border p-4 text-sm ${
+          type === "error"
+            ? "border-red-200 bg-red-50 text-red-800"
+            : "border-emerald-200 bg-emerald-50 text-emerald-800"
+        }`}
+      >
+        {type === "error" ? (
+          <AlertCircle size={19} className="shrink-0" />
+        ) : (
+          <CheckCircle2 size={19} className="shrink-0" />
+        )}
+        <span>{text}</span>
+      </div>
+    );
+
+  return (
+    <div className="min-h-screen bg-slate-100 text-slate-900 md:flex">
+      <aside className="bg-slate-950 p-5 text-white md:min-h-screen md:w-64 md:shrink-0">
+        <div className="mb-8 flex items-center gap-3">
+          <div className="rounded-xl bg-sky-400 p-2 text-slate-950">
+            <Users size={23} />
+          </div>
+          <div>
+            <h2 className="font-bold">Website Admin</h2>
+            <p className="text-xs text-slate-400">Administrator control</p>
+          </div>
+        </div>
+        <div className="rounded-xl bg-sky-400 px-3 py-3 text-sm font-semibold text-slate-950">
+          <div className="flex items-center gap-3">
+            <ShieldCheck size={18} />
+            User Management
+          </div>
+        </div>
+        <p className="mt-6 text-xs leading-5 text-slate-400">
+          Manage administrator accounts, access status, and permissions.
+        </p>
+      </aside>
+      <main className="min-w-0 flex-1 p-4 md:p-8">
+        <div className="mx-auto max-w-5xl">
+          <header className="mb-7 flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h1 style={styles.title}>User Management</h1>
-              <p style={styles.subtitle}>
-                Manage administrators of your Beauty Online Shop
+              <p className="text-sm font-semibold tracking-wider text-sky-600">
+                WEBSITE SETTINGS
+              </p>
+              <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">
+                User Management
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                Manage administrators and access permissions for your Ledora
+                Beauty website.
               </p>
             </div>
-          </div>
-        </div>
 
-        <div style={styles.headerButtons}>
-          <button onClick={fetchAdmins} style={styles.refreshButton}>
-            <RefreshCw size={17} />
-            Refresh
-          </button>
-
-          <button onClick={() => setShowForm(true)} style={styles.addButton}>
-            <UserPlus size={18} />
-            Add Admin
-          </button>
-        </div>
-      </div>
-
-      {message && <div style={styles.success}>{message}</div>}
-
-      {error && <div style={styles.error}>{error}</div>}
-
-      <div style={styles.stats}>
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>
-            <Users size={22} />
-          </div>
-
-          <div>
-            <p style={styles.statLabel}>Total Admins</p>
-            <h2 style={styles.statNumber}>{admins.length}</h2>
-          </div>
-        </div>
-
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>
-            <ShieldCheck size={22} />
-          </div>
-
-          <div>
-            <p style={styles.statLabel}>Active Admins</p>
-            <h2 style={styles.statNumber}>
-              {admins.filter((admin) => admin.isActive).length}
-            </h2>
-          </div>
-        </div>
-
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>
-            <PowerOff size={22} />
-          </div>
-
-          <div>
-            <p style={styles.statLabel}>Inactive Admins</p>
-            <h2 style={styles.statNumber}>
-              {admins.filter((admin) => !admin.isActive).length}
-            </h2>
-          </div>
-        </div>
-      </div>
-
-      <div style={styles.card}>
-        <div style={styles.cardHeader}>
-          <div>
-            <h2 style={styles.cardTitle}>Administrators</h2>
-            <p style={styles.cardSubtitle}>Maximum allowed accounts: 3</p>
-          </div>
-        </div>
-
-        {loading ? (
-          <div style={styles.loading}>Loading administrators...</div>
-        ) : admins.length === 0 ? (
-          <div style={styles.empty}>
-            <Users size={45} />
-            <h3>No administrators found</h3>
-            <p>Create the first administrator account.</p>
-          </div>
-        ) : (
-          <div style={styles.tableWrapper}>
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Administrator</th>
-                  <th style={styles.th}>Email</th>
-                  <th style={styles.th}>Role</th>
-                  <th style={styles.th}>Status</th>
-                  <th style={styles.th}>Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {admins.map((admin) => (
-                  <tr key={admin._id}>
-                    <td style={styles.td}>
-                      <div style={styles.userCell}>
-                        <div style={styles.avatar}>
-                          {admin.name?.charAt(0).toUpperCase()}
-                        </div>
-
-                        <div>
-                          <strong>{admin.name}</strong>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td style={styles.td}>
-                      <div style={styles.emailCell}>
-                        <Mail size={15} />
-                        {admin.email}
-                      </div>
-                    </td>
-
-                    <td style={styles.td}>
-                      <span style={styles.role}>Administrator</span>
-                    </td>
-
-                    <td style={styles.td}>
-                      <span
-                        style={{
-                          ...styles.status,
-                          ...(admin.isActive ? styles.active : styles.inactive),
-                        }}
-                      >
-                        {admin.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-
-                    <td style={styles.td}>
-                      <div style={styles.actions}>
-                        <button
-                          onClick={() => toggleStatus(admin)}
-                          style={styles.actionButton}
-                          title={admin.isActive ? "Deactivate" : "Activate"}
-                        >
-                          {admin.isActive ? (
-                            <PowerOff size={17} />
-                          ) : (
-                            <Power size={17} />
-                          )}
-                        </button>
-
-                        <button
-                          onClick={() => deleteAdmin(admin)}
-                          style={{
-                            ...styles.actionButton,
-                            ...styles.deleteButton,
-                          }}
-                          title="Delete"
-                        >
-                          <Trash2 size={17} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {showForm && (
-        <div style={styles.overlay}>
-          <div style={styles.modal}>
-            <div style={styles.modalHeader}>
-              <div>
-                <h2 style={styles.modalTitle}>Add Administrator</h2>
-                <p style={styles.modalSubtitle}>Create a new admin account</p>
-              </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={fetchAdmins}
+                disabled={loading}
+                className={secondaryButton}
+              >
+                {loading ? (
+                  <Loader2 size={17} className="animate-spin" />
+                ) : (
+                  <RefreshCw size={17} />
+                )}
+                Refresh
+              </button>
 
               <button
-                onClick={() => setShowForm(false)}
-                style={styles.closeButton}
+                type="button"
+                onClick={() => {
+                  setError("");
+                  setMessage("");
+                  setShowForm(true);
+                }}
+                disabled={admins.length >= 3}
+                className={primaryButton}
+                title={
+                  admins.length >= 3
+                    ? "Maximum of 3 administrators reached"
+                    : "Add administrator"
+                }
               >
-                <X size={20} />
+                <UserPlus size={18} />
+                Add Admin
+              </button>
+            </div>
+          </header>
+
+          {messageBox(error, "error")}
+          {messageBox(message, "success")}
+
+          <div className="mb-7 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {statCard("Total Admins", admins.length, Users)}
+            {statCard("Active Admins", activeCount, ShieldCheck)}
+            {statCard("Inactive Admins", inactiveCount, PowerOff)}
+          </div>
+
+          <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-slate-950">
+                  Administrator Accounts
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  View, activate, deactivate, or remove administrator accounts.
+                </p>
+              </div>
+              <span className="rounded-full bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700">
+                Maximum allowed accounts: 3
+              </span>
+            </div>
+          </section>
+
+          {loading ? (
+            <div className="flex min-h-56 items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white text-slate-500">
+              <Loader2 size={22} className="animate-spin text-sky-600" />
+              Loading administrators...
+            </div>
+          ) : admins.length === 0 ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-sky-600">
+                <Users size={28} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-950">
+                No administrators found
+              </h3>
+              <p className="mt-2 text-sm text-slate-500">
+                Create an administrator account to get started.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowForm(true)}
+                className={`${primaryButton} mt-5`}
+              >
+                <UserPlus size={17} />
+                Add Admin
+              </button>
+            </div>
+          ) : (
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-100 px-5 py-4 md:px-6">
+                <h3 className="font-bold text-slate-950">Administrators</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  {admins.length} of 3 administrator accounts are in use.
+                </p>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] border-collapse text-left">
+                  <thead>
+                    <tr className="bg-slate-50">
+                      {[
+                        "Administrator",
+                        "Email",
+                        "Role",
+                        "Status",
+                        "Actions",
+                      ].map((heading) => (
+                        <th
+                          key={heading}
+                          className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500"
+                        >
+                          {heading}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {admins.map((admin) => (
+                      <tr
+                        key={admin._id}
+                        className="border-t border-slate-100 transition hover:bg-slate-50/70"
+                      >
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-100 font-bold text-sky-700">
+                              {admin.name?.charAt(0).toUpperCase() || "A"}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-slate-900">
+                                {admin.name}
+                              </p>
+                              <p className="mt-0.5 text-xs text-slate-400">
+                                Admin account
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-2 text-sm text-slate-600">
+                            <Mail size={16} className="shrink-0 text-sky-600" />
+                            <span className="break-all">{admin.email}</span>
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700">
+                            <ShieldCheck size={14} />
+                            Administrator
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <span
+                            className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${
+                              admin.isActive
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-red-50 text-red-700"
+                            }`}
+                          >
+                            {admin.isActive ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => toggleStatus(admin)}
+                              className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+                              title={admin.isActive ? "Deactivate" : "Activate"}
+                            >
+                              {admin.isActive ? (
+                                <PowerOff size={16} />
+                              ) : (
+                                <Power size={16} />
+                              )}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => deleteAdmin(admin)}
+                              className="flex h-9 w-9 items-center justify-center rounded-lg border border-red-100 bg-red-50 text-red-600 transition hover:bg-red-100"
+                              title="Delete administrator"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          <footer className="mt-8 border-t border-slate-200 pt-5 text-xs text-slate-500">
+            User Management · Ledora Website Admin
+          </footer>
+        </div>
+      </main>
+
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl md:p-7">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-sky-600">
+                  New Account
+                </p>
+                <h2 className="mt-1 text-xl font-bold text-slate-950">
+                  Add Administrator
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Create a new admin account for Ledora.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeForm}
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
+                aria-label="Close form"
+              >
+                <X size={19} />
               </button>
             </div>
 
-            <form onSubmit={handleCreate}>
-              <label style={styles.label}>Name</label>
+            <form onSubmit={handleCreate} className="space-y-4">
+              <label className="block space-y-2">
+                <span className="text-sm font-semibold text-slate-700">
+                  Name
+                </span>
+                <input
+                  type="text"
+                  placeholder="Administrator name"
+                  value={form.name}
+                  onChange={(event) =>
+                    setForm({ ...form, name: event.target.value })
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                  required
+                />
+              </label>
 
-              <input
-                type="text"
-                placeholder="Administrator name"
-                value={form.name}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    name: e.target.value,
-                  })
-                }
-                style={styles.input}
-                required
-              />
+              <label className="block space-y-2">
+                <span className="text-sm font-semibold text-slate-700">
+                  Email
+                </span>
+                <input
+                  type="email"
+                  placeholder="admin@example.com"
+                  value={form.email}
+                  onChange={(event) =>
+                    setForm({ ...form, email: event.target.value })
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                  required
+                />
+              </label>
 
-              <label style={styles.label}>Email</label>
+              <label className="block space-y-2">
+                <span className="text-sm font-semibold text-slate-700">
+                  Password
+                </span>
+                <div className="flex items-center rounded-xl border border-slate-200 bg-white pr-3 transition focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100">
+                  <LockKeyhole
+                    size={17}
+                    className="ml-3 shrink-0 text-slate-400"
+                  />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Minimum 8 characters"
+                    value={form.password}
+                    onChange={(event) =>
+                      setForm({ ...form, password: event.target.value })
+                    }
+                    className="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-sm text-slate-900 outline-none"
+                    minLength={8}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((visible) => !visible)}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-sky-50 hover:text-sky-700"
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </label>
 
-              <input
-                type="email"
-                placeholder="admin@example.com"
-                value={form.email}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    email: e.target.value,
-                  })
-                }
-                style={styles.input}
-                required
-              />
-
-              <label style={styles.label}>Password</label>
-
-              <input
-                type="password"
-                placeholder="Minimum 8 characters"
-                value={form.password}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    password: e.target.value,
-                  })
-                }
-                style={styles.input}
-                minLength={8}
-                required
-              />
-
-              <button type="submit" style={styles.createButton}>
-                <UserPlus size={18} />
-                Create Administrator
-              </button>
+              <div className="flex flex-wrap gap-3 border-t border-slate-100 pt-5">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className={`${primaryButton} flex-1`}
+                >
+                  {submitting ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <UserPlus size={18} />
+                  )}
+                  {submitting ? "Creating..." : "Create Administrator"}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeForm}
+                  className={secondaryButton}
+                >
+                  Cancel
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -411,354 +564,5 @@ function UserManagement() {
     </div>
   );
 }
-
-const styles = {
-  page: {
-    minHeight: "100vh",
-    padding: "35px",
-    background: "#f5f8fa",
-    fontFamily: "Arial, sans-serif",
-    color: "#304b5a",
-  },
-
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "20px",
-    marginBottom: "28px",
-  },
-
-  titleRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "15px",
-  },
-
-  iconBox: {
-    width: "52px",
-    height: "52px",
-    borderRadius: "14px",
-    background: "#729db4",
-    color: "#fff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  title: {
-    margin: 0,
-    fontSize: "28px",
-  },
-
-  subtitle: {
-    margin: "6px 0 0",
-    color: "#8797a0",
-    fontSize: "14px",
-  },
-
-  headerButtons: {
-    display: "flex",
-    gap: "10px",
-  },
-
-  refreshButton: {
-    border: "1px solid #d8e3e8",
-    background: "#fff",
-    color: "#527080",
-    padding: "11px 16px",
-    borderRadius: "10px",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: "7px",
-  },
-
-  addButton: {
-    border: "none",
-    background: "#729db4",
-    color: "#fff",
-    padding: "11px 18px",
-    borderRadius: "10px",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: "7px",
-    fontWeight: "600",
-  },
-
-  stats: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: "18px",
-    marginBottom: "22px",
-  },
-
-  statCard: {
-    background: "#fff",
-    borderRadius: "16px",
-    padding: "20px",
-    display: "flex",
-    alignItems: "center",
-    gap: "15px",
-    boxShadow: "0 5px 25px rgba(43,76,95,0.06)",
-  },
-
-  statIcon: {
-    width: "45px",
-    height: "45px",
-    borderRadius: "12px",
-    background: "#edf5f8",
-    color: "#729db4",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  statLabel: {
-    margin: 0,
-    fontSize: "13px",
-    color: "#8797a0",
-  },
-
-  statNumber: {
-    margin: "5px 0 0",
-    fontSize: "25px",
-  },
-
-  card: {
-    background: "#fff",
-    borderRadius: "18px",
-    boxShadow: "0 5px 25px rgba(43,76,95,0.06)",
-    overflow: "hidden",
-  },
-
-  cardHeader: {
-    padding: "22px 25px",
-    borderBottom: "1px solid #edf1f3",
-  },
-
-  cardTitle: {
-    margin: 0,
-    fontSize: "19px",
-  },
-
-  cardSubtitle: {
-    margin: "6px 0 0",
-    color: "#8b9aa2",
-    fontSize: "13px",
-  },
-
-  tableWrapper: {
-    overflowX: "auto",
-  },
-
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-  },
-
-  th: {
-    textAlign: "left",
-    padding: "16px 20px",
-    background: "#f9fbfc",
-    color: "#6d808a",
-    fontSize: "12px",
-    textTransform: "uppercase",
-  },
-
-  td: {
-    padding: "17px 20px",
-    borderTop: "1px solid #edf1f3",
-    fontSize: "14px",
-  },
-
-  userCell: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-  },
-
-  avatar: {
-    width: "38px",
-    height: "38px",
-    borderRadius: "50%",
-    background: "#729db4",
-    color: "#fff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: "bold",
-  },
-
-  emailCell: {
-    display: "flex",
-    alignItems: "center",
-    gap: "7px",
-    color: "#71838d",
-  },
-
-  role: {
-    background: "#edf5f8",
-    color: "#527080",
-    padding: "6px 10px",
-    borderRadius: "20px",
-    fontSize: "12px",
-  },
-
-  status: {
-    padding: "6px 11px",
-    borderRadius: "20px",
-    fontSize: "12px",
-    fontWeight: "600",
-  },
-
-  active: {
-    background: "#e8f6ee",
-    color: "#32905c",
-  },
-
-  inactive: {
-    background: "#fbecec",
-    color: "#c25a5a",
-  },
-
-  actions: {
-    display: "flex",
-    gap: "7px",
-  },
-
-  actionButton: {
-    width: "36px",
-    height: "36px",
-    border: "1px solid #dce6eb",
-    background: "#fff",
-    borderRadius: "8px",
-    color: "#607d8b",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  deleteButton: {
-    color: "#c55c5c",
-  },
-
-  loading: {
-    padding: "50px",
-    textAlign: "center",
-    color: "#81929b",
-  },
-
-  empty: {
-    padding: "60px",
-    textAlign: "center",
-    color: "#81929b",
-  },
-
-  success: {
-    padding: "13px 17px",
-    background: "#e9f7ef",
-    color: "#31885a",
-    borderRadius: "10px",
-    marginBottom: "18px",
-  },
-
-  error: {
-    padding: "13px 17px",
-    background: "#fceded",
-    color: "#bd5555",
-    borderRadius: "10px",
-    marginBottom: "18px",
-  },
-
-  overlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(30, 50, 60, 0.45)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "20px",
-    zIndex: 1000,
-  },
-
-  modal: {
-    width: "100%",
-    maxWidth: "450px",
-    background: "#fff",
-    borderRadius: "18px",
-    padding: "28px",
-    boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
-  },
-
-  modalHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: "25px",
-  },
-
-  modalTitle: {
-    margin: 0,
-    fontSize: "22px",
-  },
-
-  modalSubtitle: {
-    margin: "6px 0 0",
-    color: "#8797a0",
-    fontSize: "13px",
-  },
-
-  closeButton: {
-    border: "none",
-    background: "#f1f5f7",
-    color: "#607d8b",
-    width: "35px",
-    height: "35px",
-    borderRadius: "8px",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  label: {
-    display: "block",
-    fontSize: "13px",
-    fontWeight: "600",
-    marginBottom: "7px",
-    color: "#405966",
-  },
-
-  input: {
-    width: "100%",
-    height: "46px",
-    boxSizing: "border-box",
-    border: "1px solid #dce6eb",
-    borderRadius: "9px",
-    padding: "0 13px",
-    marginBottom: "18px",
-    outline: "none",
-    fontSize: "14px",
-  },
-
-  createButton: {
-    width: "100%",
-    height: "48px",
-    border: "none",
-    borderRadius: "9px",
-    background: "#729db4",
-    color: "#fff",
-    cursor: "pointer",
-    fontWeight: "600",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "8px",
-    marginTop: "5px",
-  },
-};
 
 export default UserManagement;
