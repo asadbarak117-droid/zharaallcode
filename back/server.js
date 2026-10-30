@@ -12,7 +12,7 @@ const messageRoutes = require("./routes/messageroute");
 const consultationRoutes = require("./routes/consultationroute");
 const consultationRequestRoutes = require("./routes/consultationRequestRoute");
 const accountingRoutes = require("./routes/accountingroute");
-
+const adminRoutes = require("./routes/adminRoutes");
 const app = express();
 
 app.use(cors());
@@ -30,6 +30,7 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/consultation-requests", consultationRequestRoutes);
 app.use("/api/beauty-problems", consultationRoutes);
 app.use("/api/accounting", accountingRoutes);
+app.use("/api/admin", adminRoutes);
 
 const PORT = process.env.PORT || 5000;
 
