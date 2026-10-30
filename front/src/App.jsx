@@ -15,9 +15,9 @@ import DatabaseFront from "./Admin/databasefront";
 import PublicApp from "./Public/app1";
 
 function ProtectedRoute({ children }) {
-  const isLoggedIn = localStorage.getItem("adminToken");
+  const token = localStorage.getItem("adminToken");
 
-  return isLoggedIn ? children : <Navigate to="/admin/login" replace />;
+  return token ? children : <Navigate to="/admin/login" replace />;
 }
 
 function AdminRoutes() {
@@ -25,7 +25,16 @@ function AdminRoutes() {
     <Routes>
       <Route path="/" element={<Navigate to="/admin" replace />} />
 
-      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route
+        path="/admin/login"
+        element={
+          localStorage.getItem("adminToken") ? (
+            <Navigate to="/admin" replace />
+          ) : (
+            <AdminLogin />
+          )
+        }
+      />
 
       <Route
         path="/admin"
@@ -108,7 +117,7 @@ function AdminRoutes() {
         }
       />
 
-      <Route path="*" element={<Navigate to="/admin/login" replace />} />
+      <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>
   );
 }
