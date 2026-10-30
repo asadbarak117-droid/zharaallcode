@@ -101,13 +101,16 @@ const chatWithAI = async (req, res) => {
       reply: response.output_text,
     });
   } catch (error) {
-    console.error("LEDORA AI error:", error);
+  console.error("LEDORA AI ERROR:", {
+    message: error.message,
+    status: error.status,
+    code: error.code,
+    type: error.type,
+  });
 
-    return res.status(500).json({
-      success: false,
-      message: "AI could not answer right now. Please try again.",
-    });
-  }
-};
-
+  return res.status(500).json({
+    success: false,
+    message: "AI could not answer right now. Please try again.",
+  });
+}
 module.exports = { chatWithAI };
