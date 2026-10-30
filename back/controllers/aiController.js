@@ -1,41 +1,36 @@
-const OpenAI = require("openai");
+const Groq = require("groq-sdk");
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
 });
 
 const beautyInstructions = `
 You are LEDORA AI Beauty Consultant.
 
-Your job is to help users with general skincare, haircare,
-beauty routines, and cosmetic product recommendations.
+Help users with general skincare, haircare,
+beauty routines, and cosmetic recommendations.
 
 Language:
-- If the user selects English, answer in English.
-- If the user selects Dari, answer in Dari (Afghan Persian).
-- Keep answers clear, friendly, and easy to understand.
+- Answer in English when English is selected.
+- Answer in Dari (Afghan Persian) when Dari is selected.
+- Use clear, friendly and simple language.
 
-Skincare guidance:
-- Ask about skin type when necessary.
-- Consider oily, dry, combination, sensitive, and normal skin.
-- Suggest simple morning and evening skincare routines.
-- Explain how to introduce products gradually.
-- Recommend patch testing for new skincare products.
-- Mention sunscreen during daytime when appropriate.
+Skincare:
+- Consider oily, dry, combination, sensitive and normal skin.
+- Suggest simple morning and evening routines.
+- Recommend patch testing new products.
+- Mention sunscreen during daytime.
 
-Product recommendations:
-- Suggest product types and useful ingredients.
-- Explain why a product type may suit the user's stated needs.
-- Do not invent LEDORA product names, prices, ingredients, or stock.
-- If actual product information is not provided, say that recommendations
-  are general suggestions, not confirmed LEDORA inventory.
+Products:
+- Suggest suitable product types and ingredients.
+- Never invent LEDORA product names, prices,
+  ingredients or stock.
+- Explain when recommendations are general suggestions.
 
 Safety:
-- Do not diagnose skin diseases.
-- Do not prescribe medication.
-- For severe irritation, swelling, painful reactions, or persistent
-  skin problems, recommend consulting a qualified dermatologist.
-- Be careful with pregnancy, allergies, and sensitive skin.
+- Never diagnose skin diseases or prescribe medication.
+- Recommend a qualified dermatologist for severe
+  or persistent problems.
 - Never guarantee results.
 
 Keep responses helpful and organized.
@@ -45,10 +40,10 @@ const chatWithAI = async (req, res) => {
   try {
     const { message, language = "en", history = [] } = req.body;
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.GROQ_API_KEY) {
       return res.status(500).json({
         success: false,
-        message: "AI API key is not configured on the server.",
+        message: "Groq API key is not configured.",
       });
     }
 
@@ -81,36 +76,41 @@ const chatWithAI = async (req, res) => {
           }))
       : [];
 
-    const response = await openai.responses.create({
-      model: process.env.OPENAI_MODEL || "gpt-6-luna",
-      instructions:
-        beautyInstructions +
-        `\nThe user's selected response language is ${selectedLanguage}.`,
-      input: [
+    const completion = await groq.chat.completions.create({
+      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+
+      messages: [
+        {
+          role: "system",
+          content:
+            beautyInstructions +
+            `\nThe selected response language is ${selectedLanguage}.`,
+        },
         ...safeHistory,
         {
           role: "user",
           content: message.trim(),
         },
       ],
-      max_output_tokens: 700,
+
+      max_tokens: 700,
+      temperature: 0.7,
     });
+
+    const reply = completion.choices?.[0]?.message?.content;
 
     return res.status(200).json({
       success: true,
-      reply: response.output_text,
+      reply: reply || "Please try again.",
     });
   } catch (error) {
-  console.error("LEDORA AI ERROR:", {
-    message: error.message,
-    status: error.status,
-    code: error.code,
-    type: error.type,
-  });
+    console.error("LEDORA GROQ ERROR:", error);
 
-  return res.status(500).json({
-    success: false,
-    message: "AI could not answer right now. Please try again.",
-  });
-}
+    return res.status(500).json({
+      success: false,
+      message: "AI could not answer right now. Please try again.",
+    });
+  }
+};
+
 module.exports = { chatWithAI };
