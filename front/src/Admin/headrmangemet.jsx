@@ -19,7 +19,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 
-const API_URL = "http://localhost:5000/api/header";
+const API_URL = "https://zharaallcode.onrender.com/api/header";
 
 const initialHeader = {
   logoLetter: "L",

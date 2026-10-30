@@ -16,7 +16,7 @@ import {
   Check,
 } from "lucide-react";
 
-const API_URL = "http://localhost:5000/api/productsection";
+const API_URL = "https://zharaallcode.onrender.com/api/productsection";
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
 const initialConfig = {

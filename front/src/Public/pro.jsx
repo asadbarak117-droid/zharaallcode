@@ -10,8 +10,7 @@ import {
   X,
 } from "lucide-react";
 
-const API_URL = "http://localhost:5000/api/productsection";
-
+const API_URL = "https://zharaallcode.onrender.com/api/productsection";
 const defaultCategories = [
   "Makeup",
   "Skincare",

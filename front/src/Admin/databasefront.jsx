@@ -18,10 +18,9 @@ import {
   Calculator,
   FileSpreadsheet,
 } from "lucide-react";
-
-const API_PRODUCTS = "http://localhost:5000/api/productsection";
-const API_SALES = "http://localhost:5000/api/sales";
-const API_ACCOUNTING = "http://localhost:5000/api/accounting";
+const API_PRODUCTS = "https://zharaallcode.onrender.com/api/productsection";
+const API_SALES = "https://zharaallcode.onrender.com/api/sales";
+const API_ACCOUNTING = "https://zharaallcode.onrender.com/api/accounting";
 
 const currencyOptions = ["AFN", "USD", "PLN"];
 

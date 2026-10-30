@@ -12,7 +12,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 
-const API_URL = "http://localhost:5000/api/header";
+const API_URL = "https://zharaallcode.onrender.com/api/header";
 
 const defaultHeader = {
   logoLetter: "L",

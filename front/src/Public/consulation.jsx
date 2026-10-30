@@ -19,10 +19,9 @@ import {
   Loader2,
   Phone,
 } from "lucide-react";
-
-const BEAUTY_PROBLEMS_API = "http://localhost:5000/api/beauty-problems";
-const CONSULTATION_REQUESTS_API =
-  "http://localhost:5000/api/consultation-requests";
+const PROBLEMS_API = "https://zharaallcode.onrender.com/api/beauty-problems";
+const REQUESTS_API =
+  "https://zharaallcode.onrender.com/api/consultation-requests";
 
 const services = [
   {

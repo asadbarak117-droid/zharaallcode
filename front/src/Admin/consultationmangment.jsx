@@ -22,8 +22,9 @@ import {
   ClipboardList,
 } from "lucide-react";
 
-const PROBLEMS_API = "http://localhost:5000/api/beauty-problems";
-const REQUESTS_API = "http://localhost:5000/api/consultation-requests";
+const PROBLEMS_API = "https://zharaallcode.onrender.com/api/beauty-problems";
+const REQUESTS_API =
+  "https://zharaallcode.onrender.com/api/consultation-requests";
 
 const STATUSES = ["New", "Contacted", "Completed", "Cancelled"];
 

@@ -10,8 +10,7 @@ import {
   Send,
 } from "lucide-react";
 import { FaInstagram, FaFacebookF, FaWhatsapp } from "react-icons/fa";
-
-const API_URL = "http://localhost:5000/api";
+const API_URL = "https://zharaallcode.onrender.com/api";
 
 const defaultSettings = {
   email: "",
