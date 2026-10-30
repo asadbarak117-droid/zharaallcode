@@ -2,6 +2,7 @@ const Admin = require("../moduls/Admin");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
+
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -10,6 +11,10 @@ const login = async (req, res) => {
       return res.status(400).json({
         message: "Email and password are required",
       });
+    }
+
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET is missing");
     }
 
     const admin = await Admin.findOne({
@@ -32,14 +37,14 @@ const login = async (req, res) => {
 
     const token = jwt.sign(
       {
-        id: admin._id,
+        id: admin._id.toString(),
         role: admin.role,
       },
       process.env.JWT_SECRET,
       { expiresIn: "1d" },
     );
 
-    res.json({
+    return res.status(200).json({
       message: "Login successful",
       token,
       admin: {
@@ -50,11 +55,14 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({
-      message: "Login failed",
+    console.error("ADMIN LOGIN ERROR:", error);
+
+    return res.status(500).json({
+      message: "Server error during login",
     });
   }
 };
+
 
 const getAdmins = async (req, res) => {
   try {
