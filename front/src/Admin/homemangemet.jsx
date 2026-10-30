@@ -16,7 +16,7 @@ import {
   EyeOff,
 } from "lucide-react";
 
-const API_URL = "http://localhost:5000/api/home";
+const API_URL = "https://zharaallcode.onrender.com/api/home";
 
 const initialContent = {
   brand: "FASHION",
