@@ -1,4 +1,5 @@
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
+
 import {
   ShoppingBag,
   LayoutDashboard,
@@ -9,7 +10,6 @@ import {
   LogOut,
   Sparkles,
   ArrowRight,
-  Settings,
   Home,
   Image,
   Package,
@@ -97,74 +97,78 @@ export default function Mother() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 md:flex">
-      <aside className="bg-slate-950 p-5 text-white md:min-h-screen md:w-64 md:shrink-0">
-        <div className="mb-9 flex items-center gap-3">
-          <div className="rounded-xl bg-sky-400 p-2.5 text-slate-950">
-            <ShoppingBag size={25} />
+      {/* Mother Sidebar: Dashboard only */}
+      {isDashboard && (
+        <aside className="bg-slate-950 p-5 text-white md:min-h-screen md:w-64 md:shrink-0">
+          <div className="mb-9 flex items-center gap-3">
+            <div className="rounded-xl bg-sky-400 p-2.5 text-slate-950">
+              <ShoppingBag size={25} />
+            </div>
+
+            <div>
+              <h1 className="text-lg font-bold tracking-wide">LEDORA ADMIN</h1>
+              <p className="text-xs text-slate-400">Management Dashboard</p>
+            </div>
           </div>
 
-          <div>
-            <h1 className="text-lg font-bold tracking-wide">LEDORA ADMIN</h1>
-            <p className="text-xs text-slate-400">Management Dashboard</p>
-          </div>
-        </div>
-
-        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
-          Main Menu
-        </p>
-
-        <nav className="space-y-1.5">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-
-            const active =
-              item.path === "/admin"
-                ? path === "/admin"
-                : path === item.path || path.startsWith(item.path + "/");
-
-            return (
-              <button
-                key={item.path}
-                onClick={() => navigate(item.path)}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${
-                  active
-                    ? "bg-sky-400 font-semibold text-slate-950"
-                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                }`}
-              >
-                <Icon size={18} />
-                {item.title}
-              </button>
-            );
-          })}
-        </nav>
-
-        <div className="my-7 border-t border-slate-800" />
-
-        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
-          Account
-        </p>
-
-        <button
-          onClick={() => navigate("/admin/logout")}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-slate-300 transition hover:bg-red-500/10 hover:text-red-400"
-        >
-          <LogOut size={18} />
-          Sign Out
-        </button>
-
-        <div className="mt-10 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-          <div className="mb-2 flex items-center gap-2 text-sky-400">
-            <ShieldCheck size={18} />
-            <span className="text-sm font-semibold">Secure Admin</span>
-          </div>
-
-          <p className="text-xs leading-6 text-slate-400">
-            Manage your website and business information from one place.
+          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+            Main Menu
           </p>
-        </div>
-      </aside>
 
+          <nav className="space-y-1.5">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+
+              const active =
+                item.path === "/admin"
+                  ? path === "/admin"
+                  : path === item.path || path.startsWith(item.path + "/");
+
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${
+                    active
+                      ? "bg-sky-400 font-semibold text-slate-950"
+                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                  }`}
+                >
+                  <Icon size={18} />
+                  {item.title}
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="my-7 border-t border-slate-800" />
+
+          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+            Account
+          </p>
+
+          <button
+            onClick={() => navigate("/admin/logout")}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-slate-300 transition hover:bg-red-500/10 hover:text-red-400"
+          >
+            <LogOut size={18} />
+            Sign Out
+          </button>
+
+          <div className="mt-10 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+            <div className="mb-2 flex items-center gap-2 text-sky-400">
+              <ShieldCheck size={18} />
+              <span className="text-sm font-semibold">Secure Admin</span>
+            </div>
+
+            <p className="text-xs leading-6 text-slate-400">
+              Manage your website and business information from one place.
+            </p>
+          </div>
+        </aside>
+      )}
+
+      {/* Main Content */}
       <main className="min-w-0 flex-1 p-4 pb-24 md:p-8">
         <div className="mx-auto max-w-7xl">
           {isDashboard ? (
@@ -274,17 +278,21 @@ export default function Mother() {
             <Outlet />
           )}
 
-          <footer className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-6 text-sm text-slate-500">
-            <p>© {new Date().getFullYear()} LEDORA. All rights reserved.</p>
+          {/* Footer only on dashboard */}
+          {isDashboard && (
+            <footer className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-6 text-sm text-slate-500">
+              <p>© {new Date().getFullYear()} LEDORA. All rights reserved.</p>
 
-            <div className="flex items-center gap-2">
-              <ShieldCheck size={16} className="text-sky-500" />
-              Admin Management System
-            </div>
-          </footer>
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={16} className="text-sky-500" />
+                Admin Management System
+              </div>
+            </footer>
+          )}
         </div>
       </main>
 
+      {/* AI Assistant stays available on all admin pages */}
       <AIAssistant />
     </div>
   );
