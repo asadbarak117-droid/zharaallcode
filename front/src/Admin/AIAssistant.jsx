@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-
 import {
   Bot,
   X,
@@ -11,28 +10,71 @@ import {
   Volume2,
   Languages,
   Square,
+  Sparkles,
+  Trash2,
+  Copy,
+  Check,
+  ShieldCheck,
+  MessageCircle,
+  ChevronDown,
 } from "lucide-react";
 
 const API_URL = "https://zharaallcode.onrender.com/api";
 
+const INITIAL_MESSAGE = {
+  role: "ai",
+  text: "سلام! 💜 به دستیار هوشمند LEDORA خوش آمدید.\n\nمن می‌توانم به فارسی/دری و English با شما صحبت کنم. می‌توانید درباره مدیریت فروشگاه، محصولات، زیبایی، بازاریابی یا امکانات پنل از من سؤال کنید.\n\nHello! 💜 I'm your LEDORA Admin AI Assistant. I can communicate with you in both فارسی/دری and English.",
+};
+
+const QUICK_ACTIONS = [
+  {
+    title: "مدیریت محصولات",
+    text: "چگونه محصولات فروشگاه را بهتر مدیریت کنم؟",
+  },
+  {
+    title: "Product Management",
+    text: "How can I manage my products better?",
+  },
+  {
+    title: "ایده بازاریابی",
+    text: "برای افزایش فروش LEDORA چه ایده‌هایی داری؟",
+  },
+  {
+    title: "Marketing Ideas",
+    text: "Give me some smart marketing ideas for LEDORA.",
+  },
+];
+
+const isPersianText = (text = "") => {
+  return /[\u0600-\u06FF]/.test(text);
+};
+
+const getTextDirection = (text = "") => {
+  return isPersianText(text) ? "rtl" : "ltr";
+};
+
+const detectSpeechLanguage = (text = "") => {
+  return isPersianText(text) ? "fa-IR" : "en-US";
+};
+
 export default function AdminAIAssistant() {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
-  const [language, setLanguage] = useState("en-US");
+  const [language, setLanguage] = useState("fa-IR");
+
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [voiceError, setVoiceError] = useState("");
+
+  const [error, setError] = useState("");
+  const [copiedIndex, setCopiedIndex] = useState(null);
+  const [showLanguageMenu, setShowLanguageMenu] = useState(false);
 
   const recognitionRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
 
-  const [messages, setMessages] = useState([
-    {
-      role: "ai",
-      text: "Hello! 💜 I'm your LEDORA Admin AI Assistant. How can I help you today?",
-    },
-  ]);
+  const [messages, setMessages] = useState([INITIAL_MESSAGE]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
@@ -50,7 +92,6 @@ export default function AdminAIAssistant() {
     };
   }, []);
 
-  // Stop voice
   const stopSpeaking = () => {
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
@@ -59,23 +100,42 @@ export default function AdminAIAssistant() {
     setIsSpeaking(false);
   };
 
-  // Send message to Groq through backend
-  const handleSend = async (e) => {
-    e.preventDefault();
+  const clearChat = () => {
+    stopSpeaking();
 
-    const userMessage = message.trim();
+    setMessages([INITIAL_MESSAGE]);
+    setError("");
+    setCopiedIndex(null);
+  };
+
+  const copyMessage = async (text, index) => {
+    try {
+      await navigator.clipboard.writeText(text);
+
+      setCopiedIndex(index);
+
+      setTimeout(() => {
+        setCopiedIndex(null);
+      }, 1800);
+    } catch {
+      setError("Could not copy the message.");
+    }
+  };
+
+  const sendMessage = async (customMessage = null) => {
+    const userMessage = (customMessage ?? message).trim();
 
     if (!userMessage || isLoading) return;
 
     const token = localStorage.getItem("adminToken");
 
     if (!token) {
-      setVoiceError("Please login to your admin account first.");
+      setError("Please login to your admin account first.");
       return;
     }
 
     setMessage("");
-    setVoiceError("");
+    setError("");
     stopSpeaking();
 
     const updatedMessages = [
@@ -91,10 +151,13 @@ export default function AdminAIAssistant() {
 
     try {
       const conversation = updatedMessages
-        .filter((item) => item.role === "user" || item.role === "ai")
+        .filter(
+          (item) =>
+            (item.role === "user" || item.role === "ai") && item.text?.trim(),
+        )
         .map((item) => ({
           role: item.role === "ai" ? "assistant" : "user",
-          content: item.text,
+          content: item.text.trim(),
         }));
 
       const response = await fetch(`${API_URL}/admin-ai/chat`, {
@@ -111,15 +174,17 @@ export default function AdminAIAssistant() {
       const data = await response.json();
 
       if (response.status === 401) {
-        throw new Error("Your login session has expired. Please login again.");
+        throw new Error("Your admin session has expired. Please login again.");
       }
 
       if (!response.ok) {
-        throw new Error(data.message || "AI request failed.");
+        throw new Error(
+          data.message || "The AI service could not process your request.",
+        );
       }
 
       if (!data.answer) {
-        throw new Error("AI returned an empty response.");
+        throw new Error("The AI returned an empty response.");
       }
 
       setMessages((prev) => [
@@ -129,63 +194,86 @@ export default function AdminAIAssistant() {
           text: data.answer,
         },
       ]);
-    } catch (error) {
-      console.error("Admin AI Error:", error);
+    } catch (err) {
+      console.error("Admin AI Error:", err);
 
-      setVoiceError(
-        error.message || "Could not connect to AI. Please try again.",
+      setError(
+        err.message || "Unable to connect to LEDORA AI. Please try again.",
       );
     } finally {
       setIsLoading(false);
+
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
     }
   };
 
-  // Detect language for speech
-  const getSpeechLanguage = (text) => {
-    const persianPattern = /[\u0600-\u06FF]/;
-
-    return persianPattern.test(text) ? "fa-IR" : "en-US";
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    sendMessage();
   };
 
-  // Read message aloud
   const speakMessage = (text) => {
     if (!("speechSynthesis" in window)) {
-      setVoiceError("Speech reading is not supported in this browser.");
+      setError("Speech synthesis is not supported in this browser.");
       return;
     }
 
-    window.speechSynthesis.cancel();
+    stopSpeaking();
 
     const utterance = new SpeechSynthesisUtterance(text);
 
-    utterance.lang = getSpeechLanguage(text);
-    utterance.rate = 0.95;
-    utterance.pitch = 1.1;
+    const speechLanguage = detectSpeechLanguage(text);
 
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
+    utterance.lang = speechLanguage;
+    utterance.rate = speechLanguage === "fa-IR" ? 0.88 : 0.92;
+    utterance.pitch = 1;
+
+    const voices = window.speechSynthesis.getVoices();
+
+    const matchingVoice = voices.find((voice) => {
+      const voiceLang = voice.lang.toLowerCase();
+
+      if (speechLanguage === "fa-IR") {
+        return voiceLang.startsWith("fa");
+      }
+
+      return voiceLang.startsWith("en");
+    });
+
+    if (matchingVoice) {
+      utterance.voice = matchingVoice;
+    }
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      setError("");
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+    };
+
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+    };
 
     window.speechSynthesis.speak(utterance);
   };
 
-  // Start microphone
   const startListening = () => {
-    setVoiceError("");
+    setError("");
 
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      setVoiceError(
-        "Voice recognition is not supported. Please use Google Chrome.",
-      );
+      setError("Voice recognition is not supported. Please use Google Chrome.");
       return;
     }
 
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
+    recognitionRef.current?.stop();
 
     const recognition = new SpeechRecognition();
 
@@ -196,7 +284,7 @@ export default function AdminAIAssistant() {
 
     recognition.onstart = () => {
       setIsListening(true);
-      setVoiceError("");
+      setError("");
     };
 
     recognition.onresult = (event) => {
@@ -213,13 +301,13 @@ export default function AdminAIAssistant() {
       setIsListening(false);
 
       if (event.error === "not-allowed") {
-        setVoiceError(
-          "Microphone permission denied. Please allow microphone access.",
+        setError(
+          "Microphone permission was denied. Please allow microphone access.",
         );
       } else if (event.error === "no-speech") {
-        setVoiceError("No speech detected. Please try again.");
+        setError("No speech detected. Please try again.");
       } else {
-        setVoiceError("Voice recognition error: " + event.error);
+        setError(`Voice recognition error: ${event.error}`);
       }
     };
 
@@ -233,7 +321,7 @@ export default function AdminAIAssistant() {
       recognition.start();
     } catch {
       setIsListening(false);
-      setVoiceError("Could not start the microphone.");
+      setError("Could not start voice recognition.");
     }
   };
 
@@ -244,222 +332,601 @@ export default function AdminAIAssistant() {
 
   const changeLanguage = (value) => {
     setLanguage(value);
-    setVoiceError("");
+    setShowLanguageMenu(false);
+    setError("");
     stopListening();
   };
+
+  const languageLabel = language === "fa-IR" ? "فارسی / دری" : "English";
 
   return (
     <div className="fixed bottom-6 right-6 z-[9999]">
       {isOpen && (
-        <div className="absolute bottom-24 right-0 flex h-[540px] w-[360px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-3xl border border-purple-100 bg-white shadow-2xl">
-          {/* Header */}
-          <div className="flex items-center justify-between bg-gradient-to-r from-purple-700 via-purple-600 to-pink-500 p-4 text-white">
-            <div className="flex items-center gap-3">
-              <div className="relative rounded-2xl bg-white/20 p-3">
-                <Bot size={25} />
-                <span className="absolute -right-1 -top-1 text-xs">✨</span>
+        <div
+          className="
+            absolute bottom-24 right-0
+            flex h-[650px] w-[410px]
+            max-w-[calc(100vw-28px)]
+            flex-col overflow-hidden
+            rounded-[28px]
+            border border-purple-100
+            bg-white
+            shadow-[0_25px_80px_rgba(88,28,135,0.25)]
+          "
+        >
+          {/* HEADER */}
+          <div
+            className="
+              relative overflow-hidden
+              bg-gradient-to-br
+              from-[#4c1d95]
+              via-[#7e22ce]
+              to-[#db2777]
+              px-5 py-5
+              text-white
+            "
+          >
+            <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/10" />
+            <div className="absolute -bottom-16 -left-10 h-36 w-36 rounded-full bg-pink-300/10" />
+
+            <div className="relative flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div
+                  className="
+                    flex h-12 w-12
+                    items-center justify-center
+                    rounded-2xl
+                    bg-white/15
+                    shadow-lg
+                    backdrop-blur-md
+                  "
+                >
+                  <Bot size={27} />
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold">LEDORA AI</h3>
+
+                    <span
+                      className="
+                        rounded-full
+                        bg-green-400/20
+                        px-2 py-0.5
+                        text-[9px]
+                        font-semibold
+                        text-green-100
+                      "
+                    >
+                      ONLINE
+                    </span>
+                  </div>
+
+                  <p className="mt-1 text-xs text-purple-100">
+                    Smart Admin Assistant
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={clearChat}
+                  title="Clear conversation"
+                  className="
+                    rounded-xl p-2
+                    text-white/80
+                    transition
+                    hover:bg-white/15
+                    hover:text-white
+                  "
+                >
+                  <Trash2 size={18} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="
+                    rounded-xl p-2
+                    text-white/80
+                    transition
+                    hover:bg-white/15
+                    hover:text-white
+                  "
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="relative mt-4 flex items-center gap-2 text-[11px] text-purple-100">
+              <ShieldCheck size={14} />
+              <span>Secure admin AI assistant</span>
+              <Sparkles size={13} className="ml-auto" />
+            </div>
+          </div>
+
+          {/* LANGUAGE BAR */}
+          <div className="relative flex items-center justify-between border-b border-purple-100 bg-white px-4 py-3">
+            <div className="flex items-center gap-2">
+              <div className="rounded-lg bg-purple-50 p-2 text-purple-600">
+                <Languages size={16} />
               </div>
 
               <div>
-                <h3 className="font-bold">LEDORA Admin AI</h3>
-                <p className="text-xs text-purple-100">Your Admin Helper 💜</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                  Voice & Input
+                </p>
+
+                <p className="text-xs font-semibold text-gray-700">
+                  {languageLabel}
+                </p>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setIsOpen(false)}
-              className="rounded-full p-2 transition hover:bg-white/20"
-            >
-              <X size={21} />
-            </button>
-          </div>
-
-          {/* Language */}
-          <div className="flex items-center justify-between border-b border-purple-100 bg-white px-4 py-3">
-            <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
-              <Languages size={17} className="text-purple-600" />
-              Voice Language
-            </div>
-
-            <div className="flex gap-1 rounded-xl bg-purple-50 p-1">
+            <div className="relative">
               <button
                 type="button"
-                onClick={() => changeLanguage("en-US")}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
-                  language === "en-US"
-                    ? "bg-purple-600 text-white"
-                    : "text-purple-700 hover:bg-purple-100"
-                }`}
+                onClick={() => setShowLanguageMenu(!showLanguageMenu)}
+                className="
+                  flex items-center gap-2
+                  rounded-xl
+                  border border-purple-100
+                  bg-purple-50
+                  px-3 py-2
+                  text-xs font-semibold
+                  text-purple-700
+                  transition
+                  hover:bg-purple-100
+                "
               >
-                English
+                {language === "fa-IR" ? "فارسی" : "English"}
+
+                <ChevronDown size={14} />
               </button>
 
-              <button
-                type="button"
-                onClick={() => changeLanguage("fa-IR")}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
-                  language === "fa-IR"
-                    ? "bg-purple-600 text-white"
-                    : "text-purple-700 hover:bg-purple-100"
-                }`}
-              >
-                فارسی
-              </button>
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div className="flex flex-1 flex-col gap-3 overflow-y-auto bg-gradient-to-b from-purple-50 to-pink-50/50 p-4">
-            {messages.map((item, index) => (
-              <div
-                key={index}
-                className={`flex items-start gap-2 ${
-                  item.role === "user" ? "flex-row-reverse" : "flex-row"
-                }`}
-              >
+              {showLanguageMenu && (
                 <div
-                  className={`rounded-full p-2 ${
-                    item.role === "user"
-                      ? "bg-purple-600 text-white"
-                      : "bg-white text-purple-600 shadow-sm"
+                  className="
+                    absolute right-0 top-11 z-50
+                    w-32
+                    overflow-hidden
+                    rounded-xl
+                    border border-purple-100
+                    bg-white
+                    shadow-xl
+                  "
+                >
+                  <button
+                    type="button"
+                    onClick={() => changeLanguage("fa-IR")}
+                    className="
+                      flex w-full items-center
+                      justify-between
+                      px-3 py-2.5
+                      text-xs
+                      hover:bg-purple-50
+                    "
+                  >
+                    فارسی / دری
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => changeLanguage("en-US")}
+                    className="
+                      flex w-full items-center
+                      justify-between
+                      px-3 py-2.5
+                      text-xs
+                      hover:bg-purple-50
+                    "
+                  >
+                    English
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* MESSAGES */}
+          <div
+            className="
+              flex flex-1
+              flex-col gap-4
+              overflow-y-auto
+              bg-gradient-to-b
+              from-[#faf7ff]
+              via-white
+              to-[#fff7fb]
+              px-4 py-5
+            "
+          >
+            {messages.map((item, index) => {
+              const isUser = item.role === "user";
+              const direction = getTextDirection(item.text);
+
+              return (
+                <div
+                  key={index}
+                  className={`flex items-start gap-2.5 ${
+                    isUser ? "flex-row-reverse" : "flex-row"
                   }`}
                 >
-                  {item.role === "user" ? (
-                    <User size={16} />
-                  ) : (
-                    <Bot size={17} />
-                  )}
-                </div>
-
-                <div className="max-w-[80%]">
+                  {/* AVATAR */}
                   <div
-                    className={`rounded-2xl px-3 py-2 text-sm leading-6 whitespace-pre-wrap ${
-                      item.role === "user"
-                        ? "rounded-tr-sm bg-purple-600 text-white"
-                        : "rounded-tl-sm bg-white text-gray-700 shadow-sm"
-                    }`}
+                    className={`
+                      flex h-9 w-9 shrink-0
+                      items-center justify-center
+                      rounded-xl
+                      shadow-sm
+                      ${
+                        isUser
+                          ? "bg-purple-600 text-white"
+                          : "border border-purple-100 bg-white text-purple-600"
+                      }
+                    `}
                   >
-                    {item.text}
+                    {isUser ? <User size={16} /> : <Bot size={18} />}
                   </div>
 
-                  {item.role === "ai" && (
-                    <button
-                      type="button"
-                      onClick={() => speakMessage(item.text)}
-                      className="mt-1 flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-purple-600 hover:bg-purple-100"
+                  <div
+                    className={`flex max-w-[82%] flex-col ${
+                      isUser ? "items-end" : "items-start"
+                    }`}
+                  >
+                    {/* MESSAGE */}
+                    <div
+                      dir={direction}
+                      className={`
+                        whitespace-pre-wrap
+                        rounded-2xl
+                        px-4 py-3
+                        text-[13px]
+                        leading-6
+                        ${
+                          isUser
+                            ? "rounded-tr-md bg-purple-600 text-white shadow-md"
+                            : "rounded-tl-md border border-purple-100 bg-white text-gray-700 shadow-sm"
+                        }
+                      `}
                     >
-                      <Volume2 size={14} />
-                      Listen
+                      {item.text}
+                    </div>
+
+                    {/* AI ACTIONS */}
+                    {!isUser && (
+                      <div className="mt-1 flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => speakMessage(item.text)}
+                          className="
+                            flex items-center gap-1
+                            rounded-lg
+                            px-2 py-1
+                            text-[10px]
+                            font-medium
+                            text-purple-600
+                            transition
+                            hover:bg-purple-50
+                          "
+                        >
+                          <Volume2 size={13} />
+
+                          {isSpeaking ? "Speaking..." : "Listen"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => copyMessage(item.text, index)}
+                          className="
+                            flex items-center gap-1
+                            rounded-lg
+                            px-2 py-1
+                            text-[10px]
+                            font-medium
+                            text-gray-400
+                            transition
+                            hover:bg-gray-100
+                          "
+                        >
+                          {copiedIndex === index ? (
+                            <>
+                              <Check size={13} />
+                              Copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={13} />
+                              Copy
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* QUICK ACTIONS */}
+            {messages.length === 1 && !isLoading && (
+              <div className="mt-1">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                  Quick help
+                </p>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {QUICK_ACTIONS.map((item) => (
+                    <button
+                      key={item.title}
+                      type="button"
+                      onClick={() => sendMessage(item.text)}
+                      className="
+                        rounded-xl
+                        border border-purple-100
+                        bg-white
+                        p-3
+                        text-left
+                        shadow-sm
+                        transition
+                        hover:-translate-y-0.5
+                        hover:border-purple-300
+                        hover:bg-purple-50
+                      "
+                    >
+                      <p className="text-[11px] font-semibold text-purple-700">
+                        {item.title}
+                      </p>
+
+                      <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-gray-400">
+                        {item.text}
+                      </p>
                     </button>
-                  )}
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
 
+            {/* THINKING */}
             {isLoading && (
-              <div className="flex items-center gap-2 text-sm text-purple-600">
-                <Bot size={18} />
-                <span className="animate-pulse">LEDORA AI is thinking...</span>
+              <div className="flex items-start gap-2.5">
+                <div
+                  className="
+                    flex h-9 w-9
+                    items-center justify-center
+                    rounded-xl
+                    border border-purple-100
+                    bg-white
+                    text-purple-600
+                    shadow-sm
+                  "
+                >
+                  <Bot size={18} />
+                </div>
+
+                <div
+                  className="
+                    rounded-2xl
+                    rounded-tl-md
+                    border border-purple-100
+                    bg-white
+                    px-4 py-3
+                    shadow-sm
+                  "
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-400" />
+
+                    <span
+                      className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-500"
+                      style={{ animationDelay: "120ms" }}
+                    />
+
+                    <span
+                      className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-600"
+                      style={{ animationDelay: "240ms" }}
+                    />
+                  </div>
+                </div>
               </div>
             )}
 
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Error */}
-          {voiceError && (
-            <div className="border-t border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
-              {voiceError}
+          {/* ERROR */}
+          {error && (
+            <div className="border-t border-red-100 bg-red-50 px-4 py-2.5 text-[11px] text-red-600">
+              {error}
             </div>
           )}
 
-          {/* Input */}
+          {/* INPUT */}
           <form
-            onSubmit={handleSend}
-            className="flex items-center gap-2 border-t border-purple-100 bg-white p-3"
+            onSubmit={handleSubmit}
+            className="border-t border-purple-100 bg-white p-3"
           >
-            <button
-              type="button"
-              onClick={isListening ? stopListening : startListening}
-              title={isListening ? "Stop recording" : "Speak"}
-              className={`rounded-xl p-3 text-white transition ${
-                isListening
-                  ? "animate-pulse bg-red-500"
-                  : "bg-purple-100 text-purple-700 hover:bg-purple-200"
-              }`}
+            <div
+              className="
+                flex items-center gap-2
+                rounded-2xl
+                border border-purple-100
+                bg-purple-50/50
+                p-1.5
+                transition
+                focus-within:border-purple-300
+                focus-within:bg-white
+                focus-within:shadow-sm
+              "
             >
-              {isListening ? <MicOff size={19} /> : <Mic size={19} />}
-            </button>
-
-            <input
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder={isListening ? "Listening..." : "Write or speak..."}
-              className="min-w-0 flex-1 rounded-xl border border-purple-100 px-3 py-3 text-sm outline-none focus:border-purple-400"
-            />
-
-            <button
-              type="submit"
-              disabled={!message.trim() || isLoading}
-              className="rounded-xl bg-purple-600 p-3 text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Send size={18} />
-            </button>
-          </form>
-
-          {/* Voice Status */}
-          <div className="flex items-center justify-between border-t border-purple-100 bg-purple-50 px-4 py-2">
-            <div className="flex items-center gap-2 text-xs text-purple-600">
-              <span
-                className={`h-2 w-2 rounded-full ${
-                  isListening ? "animate-pulse bg-red-500" : "bg-green-500"
-                }`}
-              />
-
-              {isListening
-                ? "Listening to you..."
-                : isLoading
-                  ? "AI is responding..."
-                  : "Voice assistant ready"}
-            </div>
-
-            {isSpeaking && (
+              {/* MICROPHONE */}
               <button
                 type="button"
-                onClick={stopSpeaking}
-                className="flex items-center gap-1 text-xs font-semibold text-red-500"
+                onClick={isListening ? stopListening : startListening}
+                title={isListening ? "Stop recording" : "Voice input"}
+                className={`
+                  flex h-10 w-10
+                  shrink-0
+                  items-center justify-center
+                  rounded-xl
+                  transition
+                  ${
+                    isListening
+                      ? "animate-pulse bg-red-500 text-white"
+                      : "text-purple-600 hover:bg-purple-100"
+                  }
+                `}
               >
-                <Square size={13} />
-                Stop voice
+                {isListening ? <MicOff size={18} /> : <Mic size={18} />}
               </button>
-            )}
-          </div>
+
+              {/* INPUT */}
+              <input
+                ref={inputRef}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                dir={getTextDirection(message)}
+                placeholder={
+                  isListening
+                    ? language === "fa-IR"
+                      ? "در حال شنیدن..."
+                      : "Listening..."
+                    : language === "fa-IR"
+                      ? "پیام خود را بنویسید..."
+                      : "Ask LEDORA AI..."
+                }
+                className="
+                  min-w-0
+                  flex-1
+                  bg-transparent
+                  px-2
+                  py-2.5
+                  text-sm
+                  text-gray-700
+                  outline-none
+                  placeholder:text-gray-400
+                "
+              />
+
+              {/* SEND */}
+              <button
+                type="submit"
+                disabled={!message.trim() || isLoading}
+                className="
+                  flex h-10 w-10
+                  shrink-0
+                  items-center justify-center
+                  rounded-xl
+                  bg-gradient-to-br
+                  from-purple-600
+                  to-pink-500
+                  text-white
+                  shadow-md
+                  transition
+                  hover:scale-105
+                  disabled:cursor-not-allowed
+                  disabled:opacity-40
+                "
+              >
+                <Send size={17} />
+              </button>
+            </div>
+
+            <div className="mt-2 flex items-center justify-between px-1">
+              <p className="text-[9px] text-gray-400">فارسی / دری • English</p>
+
+              {isSpeaking && (
+                <button
+                  type="button"
+                  onClick={stopSpeaking}
+                  className="
+                    flex items-center gap-1
+                    text-[10px]
+                    font-semibold
+                    text-red-500
+                  "
+                >
+                  <Square size={11} />
+                  Stop voice
+                </button>
+              )}
+
+              {!isSpeaking && !isListening && (
+                <p className="flex items-center gap-1 text-[9px] text-green-500">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                  AI Ready
+                </p>
+              )}
+            </div>
+          </form>
         </div>
       )}
 
-      {/* Floating Button */}
+      {/* FLOATING AI BUTTON */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        aria-label="Toggle AI Assistant"
-        className="group relative flex h-[72px] w-[72px] items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-purple-500 via-purple-600 to-pink-500 text-white shadow-xl transition duration-300 hover:-translate-y-2 hover:scale-110 hover:shadow-purple-300"
+        aria-label="Open LEDORA AI"
+        className="
+          group
+          relative
+          flex h-[70px] w-[70px]
+          items-center justify-center
+          rounded-full
+          border-4 border-white
+          bg-gradient-to-br
+          from-purple-500
+          via-purple-600
+          to-pink-500
+          text-white
+          shadow-[0_12px_35px_rgba(124,58,237,0.4)]
+          transition-all
+          duration-300
+          hover:-translate-y-1
+          hover:scale-105
+          hover:shadow-[0_18px_45px_rgba(124,58,237,0.5)]
+        "
       >
         {isOpen ? (
-          <X size={29} />
+          <X size={28} />
         ) : (
           <>
             <Bot
-              size={37}
+              size={36}
               strokeWidth={1.8}
-              className="transition duration-300 group-hover:rotate-12"
+              className="
+                transition
+                duration-300
+                group-hover:rotate-6
+              "
             />
 
-            <span className="absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-pink-400">
+            <span
+              className="
+                absolute
+                -right-1
+                -top-1
+                flex h-7 w-7
+                items-center justify-center
+                rounded-full
+                border-2 border-white
+                bg-pink-400
+              "
+            >
               <Heart size={14} fill="white" />
             </span>
 
-            <span className="absolute -left-2 -top-2 animate-bounce text-lg">
+            <span
+              className="
+                absolute
+                -left-1
+                -top-2
+                animate-bounce
+                text-lg
+              "
+            >
               ✨
             </span>
           </>
