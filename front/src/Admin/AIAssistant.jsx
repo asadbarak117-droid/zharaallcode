@@ -23,7 +23,7 @@ const API_URL = "https://zharaallcode.onrender.com/api";
 
 const INITIAL_MESSAGE = {
   role: "ai",
-  text: "سلام! 💜 به دستیار هوشمند LEDORA خوش آمدید.\n\nمن می‌توانم به فارسی/دری و English با شما صحبت کنم. می‌توانید درباره مدیریت فروشگاه، محصولات، زیبایی، بازاریابی یا امکانات پنل از من سؤال کنید.\n\nHello! 💜 I'm your LEDORA Admin AI Assistant. I can communicate with you in both فارسی/دری and English.",
+  text: "سلام! 💙 به دستیار هوشمند LEDORA خوش آمدید.\n\nمن می‌توانم به فارسی/دری و English با شما صحبت کنم. می‌توانید درباره مدیریت فروشگاه، محصولات، زیبایی، بازاریابی یا امکانات پنل از من سؤال کنید.\n\nHello! 💙 I'm your LEDORA Admin AI Assistant. I can communicate with you in both فارسی/دری and English.",
 };
 
 const QUICK_ACTIONS = [
@@ -349,9 +349,9 @@ export default function AdminAIAssistant() {
             max-w-[calc(100vw-28px)]
             flex-col overflow-hidden
             rounded-[28px]
-            border border-purple-100
+            border border-sky-100
             bg-white
-            shadow-[0_25px_80px_rgba(88,28,135,0.25)]
+            shadow-[0_25px_80px_rgba(2,132,199,0.20)]
           "
         >
           {/* HEADER */}
@@ -359,15 +359,15 @@ export default function AdminAIAssistant() {
             className="
               relative overflow-hidden
               bg-gradient-to-br
-              from-[#4c1d95]
-              via-[#7e22ce]
-              to-[#db2777]
+              from-[#0c4a6e]
+              via-[#0284c7]
+              to-[#38bdf8]
               px-5 py-5
               text-white
             "
           >
             <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/10" />
-            <div className="absolute -bottom-16 -left-10 h-36 w-36 rounded-full bg-pink-300/10" />
+            <div className="absolute -bottom-16 -left-10 h-36 w-36 rounded-full bg-sky-300/10" />
 
             <div className="relative flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -402,7 +402,7 @@ export default function AdminAIAssistant() {
                     </span>
                   </div>
 
-                  <p className="mt-1 text-xs text-purple-100">
+                  <p className="mt-1 text-xs text-sky-100">
                     Smart Admin Assistant
                   </p>
                 </div>
@@ -440,7 +440,7 @@ export default function AdminAIAssistant() {
               </div>
             </div>
 
-            <div className="relative mt-4 flex items-center gap-2 text-[11px] text-purple-100">
+            <div className="relative mt-4 flex items-center gap-2 text-[11px] text-sky-100">
               <ShieldCheck size={14} />
               <span>Secure admin AI assistant</span>
               <Sparkles size={13} className="ml-auto" />
@@ -448,9 +448,9 @@ export default function AdminAIAssistant() {
           </div>
 
           {/* LANGUAGE BAR */}
-          <div className="relative flex items-center justify-between border-b border-purple-100 bg-white px-4 py-3">
+          <div className="relative flex items-center justify-between border-b border-sky-100 bg-white px-4 py-3">
             <div className="flex items-center gap-2">
-              <div className="rounded-lg bg-purple-50 p-2 text-purple-600">
+              <div className="rounded-lg bg-sky-50 p-2 text-sky-600">
                 <Languages size={16} />
               </div>
 
@@ -472,13 +472,13 @@ export default function AdminAIAssistant() {
                 className="
                   flex items-center gap-2
                   rounded-xl
-                  border border-purple-100
-                  bg-purple-50
+                  border border-sky-100
+                  bg-sky-50
                   px-3 py-2
                   text-xs font-semibold
-                  text-purple-700
+                  text-sky-700
                   transition
-                  hover:bg-purple-100
+                  hover:bg-sky-100
                 "
               >
                 {language === "fa-IR" ? "فارسی" : "English"}
@@ -493,7 +493,7 @@ export default function AdminAIAssistant() {
                     w-32
                     overflow-hidden
                     rounded-xl
-                    border border-purple-100
+                    border border-sky-100
                     bg-white
                     shadow-xl
                   "
@@ -506,7 +506,7 @@ export default function AdminAIAssistant() {
                       justify-between
                       px-3 py-2.5
                       text-xs
-                      hover:bg-purple-50
+                      hover:bg-sky-50
                     "
                   >
                     فارسی / دری
@@ -520,7 +520,7 @@ export default function AdminAIAssistant() {
                       justify-between
                       px-3 py-2.5
                       text-xs
-                      hover:bg-purple-50
+                      hover:bg-sky-50
                     "
                   >
                     English
@@ -537,9 +537,9 @@ export default function AdminAIAssistant() {
               flex-col gap-4
               overflow-y-auto
               bg-gradient-to-b
-              from-[#faf7ff]
+              from-[#f0f9ff]
               via-white
-              to-[#fff7fb]
+              to-[#e0f2fe]
               px-4 py-5
             "
           >
@@ -563,8 +563,8 @@ export default function AdminAIAssistant() {
                       shadow-sm
                       ${
                         isUser
-                          ? "bg-purple-600 text-white"
-                          : "border border-purple-100 bg-white text-purple-600"
+                          ? "bg-sky-600 text-white"
+                          : "border border-sky-100 bg-white text-sky-600"
                       }
                     `}
                   >
@@ -587,8 +587,8 @@ export default function AdminAIAssistant() {
                         leading-6
                         ${
                           isUser
-                            ? "rounded-tr-md bg-purple-600 text-white shadow-md"
-                            : "rounded-tl-md border border-purple-100 bg-white text-gray-700 shadow-sm"
+                            ? "rounded-tr-md bg-sky-600 text-white shadow-md"
+                            : "rounded-tl-md border border-sky-100 bg-white text-gray-700 shadow-sm"
                         }
                       `}
                     >
@@ -607,9 +607,9 @@ export default function AdminAIAssistant() {
                             px-2 py-1
                             text-[10px]
                             font-medium
-                            text-purple-600
+                            text-sky-600
                             transition
-                            hover:bg-purple-50
+                            hover:bg-sky-50
                           "
                         >
                           <Volume2 size={13} />
@@ -665,18 +665,18 @@ export default function AdminAIAssistant() {
                       onClick={() => sendMessage(item.text)}
                       className="
                         rounded-xl
-                        border border-purple-100
+                        border border-sky-100
                         bg-white
                         p-3
                         text-left
                         shadow-sm
                         transition
                         hover:-translate-y-0.5
-                        hover:border-purple-300
-                        hover:bg-purple-50
+                        hover:border-sky-300
+                        hover:bg-sky-50
                       "
                     >
-                      <p className="text-[11px] font-semibold text-purple-700">
+                      <p className="text-[11px] font-semibold text-sky-700">
                         {item.title}
                       </p>
 
@@ -697,9 +697,9 @@ export default function AdminAIAssistant() {
                     flex h-9 w-9
                     items-center justify-center
                     rounded-xl
-                    border border-purple-100
+                    border border-sky-100
                     bg-white
-                    text-purple-600
+                    text-sky-600
                     shadow-sm
                   "
                 >
@@ -710,22 +710,22 @@ export default function AdminAIAssistant() {
                   className="
                     rounded-2xl
                     rounded-tl-md
-                    border border-purple-100
+                    border border-sky-100
                     bg-white
                     px-4 py-3
                     shadow-sm
                   "
                 >
                   <div className="flex items-center gap-1.5">
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-400" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-400" />
 
                     <span
-                      className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-500"
+                      className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-500"
                       style={{ animationDelay: "120ms" }}
                     />
 
                     <span
-                      className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-600"
+                      className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-600"
                       style={{ animationDelay: "240ms" }}
                     />
                   </div>
@@ -746,17 +746,17 @@ export default function AdminAIAssistant() {
           {/* INPUT */}
           <form
             onSubmit={handleSubmit}
-            className="border-t border-purple-100 bg-white p-3"
+            className="border-t border-sky-100 bg-white p-3"
           >
             <div
               className="
                 flex items-center gap-2
                 rounded-2xl
-                border border-purple-100
-                bg-purple-50/50
+                border border-sky-100
+                bg-sky-50/50
                 p-1.5
                 transition
-                focus-within:border-purple-300
+                focus-within:border-sky-300
                 focus-within:bg-white
                 focus-within:shadow-sm
               "
@@ -775,7 +775,7 @@ export default function AdminAIAssistant() {
                   ${
                     isListening
                       ? "animate-pulse bg-red-500 text-white"
-                      : "text-purple-600 hover:bg-purple-100"
+                      : "text-sky-600 hover:bg-sky-100"
                   }
                 `}
               >
@@ -820,8 +820,8 @@ export default function AdminAIAssistant() {
                   items-center justify-center
                   rounded-xl
                   bg-gradient-to-br
-                  from-purple-600
-                  to-pink-500
+                  from-sky-600
+                  to-sky-500
                   text-white
                   shadow-md
                   transition
@@ -877,16 +877,16 @@ export default function AdminAIAssistant() {
           rounded-full
           border-4 border-white
           bg-gradient-to-br
-          from-purple-500
-          via-purple-600
-          to-pink-500
+          from-sky-500
+          via-sky-600
+          to-sky-500
           text-white
-          shadow-[0_12px_35px_rgba(124,58,237,0.4)]
+          shadow-[0_12px_35px_rgba(56,189,248,0.35)]
           transition-all
           duration-300
           hover:-translate-y-1
           hover:scale-105
-          hover:shadow-[0_18px_45px_rgba(124,58,237,0.5)]
+          hover:shadow-[0_18px_45px_rgba(56,189,248,0.45)]
         "
       >
         {isOpen ? (
@@ -912,7 +912,7 @@ export default function AdminAIAssistant() {
                 items-center justify-center
                 rounded-full
                 border-2 border-white
-                bg-pink-400
+                bg-sky-400
               "
             >
               <Heart size={14} fill="white" />

@@ -23,13 +23,17 @@ export default function LoadingScreen({ onFinish }) {
     <>
       <style>{`
         .loading-screen {
+          --primary: #38bdf8;
+          --primary-dark: #0284c7;
+          --navy: #1e293b;
+          --light-blue: #e0f2fe;
           position: fixed;
           inset: 0;
           z-index: 99999;
           display: flex;
           align-items: center;
           justify-content: center;
-          background: radial-gradient(circle, #f5e9ff, #fff8ff, #fff);
+          background: radial-gradient(circle, #e0f2fe, #f0f9ff, #ffffff);
           overflow: hidden;
         }
 
@@ -60,21 +64,21 @@ export default function LoadingScreen({ onFinish }) {
           width: 74px;
           height: 62px;
           border-radius: 24px;
-          background: linear-gradient(145deg, white, #ded2ed);
-          border: 2px solid #b99ad4;
+          background: linear-gradient(145deg, #ffffff, #dbeafe);
+          border: 2px solid #7dd3fc;
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 20px;
-          box-shadow: 0 8px 25px #8959a833;
+          box-shadow: 0 8px 25px #38bdf833;
         }
 
         .robot-eye {
           width: 10px;
           height: 15px;
           border-radius: 50%;
-          background: #9b5fc7;
-          box-shadow: 0 0 12px #9b5fc7;
+          background: #0284c7;
+          box-shadow: 0 0 12px #38bdf8;
           animation: blink 3s infinite;
         }
 
@@ -84,7 +88,7 @@ export default function LoadingScreen({ onFinish }) {
           left: 47px;
           width: 18px;
           height: 14px;
-          background: #bca4cd;
+          background: #7dd3fc;
           border-radius: 5px;
         }
 
@@ -95,12 +99,12 @@ export default function LoadingScreen({ onFinish }) {
           width: 70px;
           height: 65px;
           border-radius: 22px;
-          background: linear-gradient(145deg, white, #d8c8e5);
-          border: 2px solid #b99ad4;
+          background: linear-gradient(145deg, #ffffff, #dbeafe);
+          border: 2px solid #7dd3fc;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 8px 20px #8959a833;
+          box-shadow: 0 8px 20px #38bdf833;
         }
 
         .robot-heart {
@@ -111,7 +115,8 @@ export default function LoadingScreen({ onFinish }) {
           align-items: center;
           justify-content: center;
           color: white;
-          background: linear-gradient(135deg, #d78ce8, #9b5fc7);
+          background: linear-gradient(135deg, #38bdf8, #0284c7);
+          box-shadow: 0 0 15px #38bdf866;
           animation: heartPulse 1.2s infinite;
         }
 
@@ -121,8 +126,8 @@ export default function LoadingScreen({ onFinish }) {
           width: 16px;
           height: 55px;
           border-radius: 12px;
-          background: linear-gradient(#eee5f4, #c8b2d7);
-          border: 2px solid #b99ad4;
+          background: linear-gradient(#e0f2fe, #bae6fd);
+          border: 2px solid #7dd3fc;
         }
 
         .robot-arm-left {
@@ -143,8 +148,8 @@ export default function LoadingScreen({ onFinish }) {
           width: 18px;
           height: 42px;
           border-radius: 10px;
-          background: linear-gradient(#dcd0e6, #bca4cd);
-          border: 2px solid #aa8cbe;
+          background: linear-gradient(#bae6fd, #7dd3fc);
+          border: 2px solid #38bdf8;
           transform-origin: top center;
         }
 
@@ -165,7 +170,7 @@ export default function LoadingScreen({ onFinish }) {
           width: 27px;
           height: 11px;
           border-radius: 10px;
-          background: #a47cba;
+          background: #0284c7;
         }
 
         .robot-shadow {
@@ -175,7 +180,7 @@ export default function LoadingScreen({ onFinish }) {
           width: 100px;
           height: 18px;
           border-radius: 50%;
-          background: #643c8229;
+          background: #0284c729;
           transform: translateX(-50%);
           filter: blur(5px);
           animation: shadowMove .7s infinite;
@@ -190,13 +195,13 @@ export default function LoadingScreen({ onFinish }) {
           font-size: 32px;
           letter-spacing: 8px;
           font-weight: 600;
-          color: #7d4a9c;
+          color: #1e293b;
         }
 
         .loading-text {
           margin: 12px 0 20px;
           font-size: 14px;
-          color: #866d91;
+          color: #64748b;
         }
 
         .progress-container {
@@ -205,20 +210,21 @@ export default function LoadingScreen({ onFinish }) {
           margin: auto;
           border-radius: 10px;
           overflow: hidden;
-          background: #7d4a9c20;
+          background: #38bdf833;
         }
 
         .progress-bar {
           height: 100%;
           border-radius: 10px;
-          background: linear-gradient(90deg, #c78be2, #8d52b0);
+          background: linear-gradient(90deg, #38bdf8, #0284c7);
           transition: width .1s linear;
         }
 
         .progress-number {
           margin-top: 9px;
           font-size: 12px;
-          color: #9a7ba6;
+          color: #0284c7;
+          font-weight: 600;
         }
 
         @keyframes robotWalk {
