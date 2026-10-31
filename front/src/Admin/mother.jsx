@@ -96,8 +96,12 @@ export default function Mother() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-800 md:flex">
-      {/* Mother Sidebar: Dashboard only */}
+    <div
+      className={`min-h-screen bg-slate-100 text-slate-800 ${
+        isDashboard ? "md:flex" : "block"
+      }`}
+    >
+      {/* Mother Sidebar - Dashboard only */}
       {isDashboard && (
         <aside className="bg-slate-950 p-5 text-white md:min-h-screen md:w-64 md:shrink-0">
           <div className="mb-9 flex items-center gap-3">
@@ -169,117 +173,118 @@ export default function Mother() {
       )}
 
       {/* Main Content */}
-      <main className="min-w-0 flex-1 p-4 pb-24 md:p-8">
-        <div className="mx-auto max-w-7xl">
-          {isDashboard ? (
-            <>
-              <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold tracking-widest text-sky-600">
-                    ADMINISTRATION
-                  </p>
+      <main
+        className={`min-w-0 ${
+          isDashboard ? "flex-1 p-4 pb-24 md:p-8" : "min-h-screen w-full p-0"
+        }`}
+      >
+        {isDashboard ? (
+          <div className="mx-auto max-w-7xl">
+            {/* Dashboard Header */}
+            <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold tracking-widest text-sky-600">
+                  ADMINISTRATION
+                </p>
 
-                  <h2 className="mt-2 text-3xl font-bold text-slate-900 md:text-4xl">
-                    Welcome to LEDORA
-                  </h2>
+                <h2 className="mt-2 text-3xl font-bold text-slate-900 md:text-4xl">
+                  Welcome to LEDORA
+                </h2>
 
-                  <p className="mt-2 text-sm text-slate-500 md:text-base">
-                    Manage your website and business from one dashboard.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                  <Sparkles size={19} className="text-sky-500" />
-                  <span className="text-sm font-semibold">Admin Dashboard</span>
-                </div>
-              </header>
-
-              <section className="relative mb-9 overflow-hidden rounded-3xl bg-slate-950 p-7 text-white shadow-sm md:p-10">
-                <div className="relative z-10 max-w-2xl">
-                  <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-4 py-2 text-sm text-sky-300">
-                    <ShieldCheck size={16} />
-                    Administration Center
-                  </div>
-
-                  <h3 className="text-3xl font-bold md:text-4xl">
-                    Everything Under Control.
-                  </h3>
-
-                  <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300 md:text-base">
-                    Your central workspace for managing website content,
-                    products, database and administrator accounts.
-                  </p>
-
-                  <button
-                    onClick={() => navigate("/admin/website")}
-                    className="mt-7 inline-flex items-center gap-2 rounded-xl bg-sky-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-sky-300"
-                  >
-                    Manage Website
-                    <ArrowRight size={18} />
-                  </button>
-                </div>
-
-                <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full border-[35px] border-sky-400/10" />
-
-                <div className="pointer-events-none absolute -bottom-32 right-24 h-64 w-64 rounded-full bg-sky-400/10 blur-3xl" />
-              </section>
-
-              <div className="mb-6">
-                <h3 className="text-xl font-bold text-slate-900">
-                  Management Modules
-                </h3>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  Choose a module to manage your business.
+                <p className="mt-2 text-sm text-slate-500 md:text-base">
+                  Manage your website and business from one dashboard.
                 </p>
               </div>
 
-              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                {modules.map((module) => {
-                  const Icon = module.icon;
-
-                  return (
-                    <button
-                      key={module.path}
-                      onClick={() => navigate(module.path)}
-                      className="group relative flex min-h-72 flex-col rounded-3xl border border-slate-200 bg-white p-7 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:border-sky-200 hover:shadow-xl"
-                    >
-                      <div className="mb-7 flex w-full items-center justify-between">
-                        <div className="rounded-2xl bg-sky-100 p-5 text-sky-600 transition group-hover:bg-sky-500 group-hover:text-white">
-                          <Icon size={34} />
-                        </div>
-
-                        <span className="text-3xl font-bold text-slate-100">
-                          {module.number}
-                        </span>
-                      </div>
-
-                      <h4 className="text-xl font-bold text-slate-900">
-                        {module.title}
-                      </h4>
-
-                      <p className="mt-3 flex-1 text-sm leading-7 text-slate-500">
-                        {module.description}
-                      </p>
-
-                      <div className="mt-6 flex items-center gap-2 font-semibold text-sky-600">
-                        Open Module
-                        <ArrowRight
-                          size={18}
-                          className="transition group-hover:translate-x-2"
-                        />
-                      </div>
-                    </button>
-                  );
-                })}
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                <Sparkles size={19} className="text-sky-500" />
+                <span className="text-sm font-semibold">Admin Dashboard</span>
               </div>
-            </>
-          ) : (
-            <Outlet />
-          )}
+            </header>
 
-          {/* Footer only on dashboard */}
-          {isDashboard && (
+            {/* Hero Section */}
+            <section className="relative mb-9 overflow-hidden rounded-3xl bg-slate-950 p-7 text-white shadow-sm md:p-10">
+              <div className="relative z-10 max-w-2xl">
+                <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-4 py-2 text-sm text-sky-300">
+                  <ShieldCheck size={16} />
+                  Administration Center
+                </div>
+
+                <h3 className="text-3xl font-bold md:text-4xl">
+                  Everything Under Control.
+                </h3>
+
+                <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300 md:text-base">
+                  Your central workspace for managing website content, products,
+                  database and administrator accounts.
+                </p>
+
+                <button
+                  onClick={() => navigate("/admin/website")}
+                  className="mt-7 inline-flex items-center gap-2 rounded-xl bg-sky-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-sky-300"
+                >
+                  Manage Website
+                  <ArrowRight size={18} />
+                </button>
+              </div>
+
+              <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full border-[35px] border-sky-400/10" />
+
+              <div className="pointer-events-none absolute -bottom-32 right-24 h-64 w-64 rounded-full bg-sky-400/10 blur-3xl" />
+            </section>
+
+            {/* Management Modules */}
+            <div className="mb-6">
+              <h3 className="text-xl font-bold text-slate-900">
+                Management Modules
+              </h3>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Choose a module to manage your business.
+              </p>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {modules.map((module) => {
+                const Icon = module.icon;
+
+                return (
+                  <button
+                    key={module.path}
+                    onClick={() => navigate(module.path)}
+                    className="group relative flex min-h-72 flex-col rounded-3xl border border-slate-200 bg-white p-7 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:border-sky-200 hover:shadow-xl"
+                  >
+                    <div className="mb-7 flex w-full items-center justify-between">
+                      <div className="rounded-2xl bg-sky-100 p-5 text-sky-600 transition group-hover:bg-sky-500 group-hover:text-white">
+                        <Icon size={34} />
+                      </div>
+
+                      <span className="text-3xl font-bold text-slate-100">
+                        {module.number}
+                      </span>
+                    </div>
+
+                    <h4 className="text-xl font-bold text-slate-900">
+                      {module.title}
+                    </h4>
+
+                    <p className="mt-3 flex-1 text-sm leading-7 text-slate-500">
+                      {module.description}
+                    </p>
+
+                    <div className="mt-6 flex items-center gap-2 font-semibold text-sky-600">
+                      Open Module
+                      <ArrowRight
+                        size={18}
+                        className="transition group-hover:translate-x-2"
+                      />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Dashboard Footer */}
             <footer className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-6 text-sm text-slate-500">
               <p>© {new Date().getFullYear()} LEDORA. All rights reserved.</p>
 
@@ -288,8 +293,12 @@ export default function Mother() {
                 Admin Management System
               </div>
             </footer>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="min-h-screen w-full">
+            <Outlet />
+          </div>
+        )}
       </main>
 
       {/* AI Assistant stays available on all admin pages */}
