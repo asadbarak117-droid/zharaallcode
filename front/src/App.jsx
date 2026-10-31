@@ -15,7 +15,6 @@ import DatabaseFront from "./Admin/databasefront";
 
 import PublicApp from "./Public/app1";
 
-// Check admin login
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem("adminToken");
 
@@ -27,7 +26,6 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
-// Admin logout
 function AdminLogout() {
   useEffect(() => {
     localStorage.removeItem("adminToken");
@@ -36,19 +34,15 @@ function AdminLogout() {
   return <Navigate to="/admin/login" replace />;
 }
 
-// Admin routes
 function AdminRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/admin" replace />} />
 
-      {/* Login */}
       <Route path="/admin/login" element={<AdminLogin />} />
 
-      {/* Logout */}
       <Route path="/admin/logout" element={<AdminLogout />} />
 
-      {/* Admin Dashboard */}
       <Route
         path="/admin"
         element={
@@ -56,95 +50,34 @@ function AdminRoutes() {
             <Mother />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route index element={null} />
 
-      {/* Website Management */}
-      <Route
-        path="/admin/website"
-        element={
-          <ProtectedRoute>
-            <WebManagement />
-          </ProtectedRoute>
-        }
-      />
+        <Route path="website" element={<WebManagement />} />
 
-      {/* Home Management */}
-      <Route
-        path="/admin/website/home"
-        element={
-          <ProtectedRoute>
-            <HomeManagement />
-          </ProtectedRoute>
-        }
-      />
+        <Route path="website/home" element={<HomeManagement />} />
 
-      {/* Product Management */}
-      <Route
-        path="/admin/website/product"
-        element={
-          <ProtectedRoute>
-            <ProductManagement />
-          </ProtectedRoute>
-        }
-      />
+        <Route path="website/product" element={<ProductManagement />} />
 
-      {/* Header Management */}
-      <Route
-        path="/admin/website/header"
-        element={
-          <ProtectedRoute>
-            <HeaderManagement />
-          </ProtectedRoute>
-        }
-      />
+        <Route path="website/header" element={<HeaderManagement />} />
 
-      {/* Connect Management */}
-      <Route
-        path="/admin/website/connect"
-        element={
-          <ProtectedRoute>
-            <ConectMagment />
-          </ProtectedRoute>
-        }
-      />
+        <Route path="website/connect" element={<ConectMagment />} />
 
-      {/* Consultation Management */}
-      <Route
-        path="/admin/website/consultation"
-        element={
-          <ProtectedRoute>
-            <ConsultationManagement />
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="website/consultation"
+          element={<ConsultationManagement />}
+        />
 
-      {/* Database */}
-      <Route
-        path="/admin/database"
-        element={
-          <ProtectedRoute>
-            <DatabaseFront />
-          </ProtectedRoute>
-        }
-      />
+        <Route path="database" element={<DatabaseFront />} />
 
-      {/* User Management */}
-      <Route
-        path="/admin/users"
-        element={
-          <ProtectedRoute>
-            <UserManagement />
-          </ProtectedRoute>
-        }
-      />
+        <Route path="users" element={<UserManagement />} />
+      </Route>
 
-      {/* Unknown Admin Route */}
       <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>
   );
 }
 
-// Main App
 function App() {
   const isAdminDomain =
     window.location.hostname === "beautyonlineshop-manager.vercel.app";
@@ -153,7 +86,6 @@ function App() {
 
   useEffect(() => {
     if (isAdminDomain) {
-      // Require login whenever admin app opens or refreshes
       localStorage.removeItem("adminToken");
     }
 
