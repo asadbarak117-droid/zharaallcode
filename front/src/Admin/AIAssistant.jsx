@@ -4,23 +4,24 @@ import {
   Bot,
   X,
   Send,
-  Sparkles,
   User,
   Heart,
   Mic,
   MicOff,
   Volume2,
-  VolumeX,
   Languages,
   Square,
 } from "lucide-react";
 
-export default function AIAssistant() {
+const API_URL = "https://zharaallcode.onrender.com/api";
+
+export default function AdminAIAssistant() {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [language, setLanguage] = useState("en-US");
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [voiceError, setVoiceError] = useState("");
 
   const recognitionRef = useRef(null);
@@ -29,18 +30,16 @@ export default function AIAssistant() {
   const [messages, setMessages] = useState([
     {
       role: "ai",
-      text: "Hello! 💜 I'm your Beauty Online Shop AI Assistant. How can I help you today?",
+      text: "Hello! 💜 I'm your LEDORA Admin AI Assistant. How can I help you today?",
     },
   ]);
 
-  // Automatically scroll to the latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
       behavior: "smooth",
     });
-  }, [messages]);
+  }, [messages, isLoading]);
 
-  // Stop microphone and speech when component is removed
   useEffect(() => {
     return () => {
       recognitionRef.current?.stop();
@@ -51,24 +50,97 @@ export default function AIAssistant() {
     };
   }, []);
 
-  // Send message
-  const handleSend = (e) => {
-    e.preventDefault();
+  // Stop voice
+  const stopSpeaking = () => {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
 
-    if (!message.trim()) return;
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "user",
-        text: message.trim(),
-      },
-    ]);
-
-    setMessage("");
+    setIsSpeaking(false);
   };
 
-  // Detect language from text for voice reading
+  // Send message to Groq through backend
+  const handleSend = async (e) => {
+    e.preventDefault();
+
+    const userMessage = message.trim();
+
+    if (!userMessage || isLoading) return;
+
+    const token = localStorage.getItem("adminToken");
+
+    if (!token) {
+      setVoiceError("Please login to your admin account first.");
+      return;
+    }
+
+    setMessage("");
+    setVoiceError("");
+    stopSpeaking();
+
+    const updatedMessages = [
+      ...messages,
+      {
+        role: "user",
+        text: userMessage,
+      },
+    ];
+
+    setMessages(updatedMessages);
+    setIsLoading(true);
+
+    try {
+      const conversation = updatedMessages
+        .filter((item) => item.role === "user" || item.role === "ai")
+        .map((item) => ({
+          role: item.role === "ai" ? "assistant" : "user",
+          content: item.text,
+        }));
+
+      const response = await fetch(`${API_URL}/admin-ai/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          messages: conversation,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.status === 401) {
+        throw new Error("Your login session has expired. Please login again.");
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || "AI request failed.");
+      }
+
+      if (!data.answer) {
+        throw new Error("AI returned an empty response.");
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          text: data.answer,
+        },
+      ]);
+    } catch (error) {
+      console.error("Admin AI Error:", error);
+
+      setVoiceError(
+        error.message || "Could not connect to AI. Please try again.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Detect language for speech
   const getSpeechLanguage = (text) => {
     const persianPattern = /[\u0600-\u06FF]/;
 
@@ -97,16 +169,7 @@ export default function AIAssistant() {
     window.speechSynthesis.speak(utterance);
   };
 
-  // Stop reading aloud
-  const stopSpeaking = () => {
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
-
-    setIsSpeaking(false);
-  };
-
-  // Start voice recognition
+  // Start microphone
   const startListening = () => {
     setVoiceError("");
 
@@ -170,17 +233,15 @@ export default function AIAssistant() {
       recognition.start();
     } catch {
       setIsListening(false);
-      setVoiceError("Could not start the microphone. Please try again.");
+      setVoiceError("Could not start the microphone.");
     }
   };
 
-  // Stop listening
   const stopListening = () => {
     recognitionRef.current?.stop();
     setIsListening(false);
   };
 
-  // Change recognition language
   const changeLanguage = (value) => {
     setLanguage(value);
     setVoiceError("");
@@ -189,7 +250,6 @@ export default function AIAssistant() {
 
   return (
     <div className="fixed bottom-6 right-6 z-[9999]">
-      {/* Chat Window */}
       {isOpen && (
         <div className="absolute bottom-24 right-0 flex h-[540px] w-[360px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-3xl border border-purple-100 bg-white shadow-2xl">
           {/* Header */}
@@ -197,26 +257,25 @@ export default function AIAssistant() {
             <div className="flex items-center gap-3">
               <div className="relative rounded-2xl bg-white/20 p-3">
                 <Bot size={25} />
-
                 <span className="absolute -right-1 -top-1 text-xs">✨</span>
               </div>
 
               <div>
-                <h3 className="font-bold">Cutie AI Assistant</h3>
-                <p className="text-xs text-purple-100">Your Beauty Helper 💜</p>
+                <h3 className="font-bold">LEDORA Admin AI</h3>
+                <p className="text-xs text-purple-100">Your Admin Helper 💜</p>
               </div>
             </div>
 
             <button
+              type="button"
               onClick={() => setIsOpen(false)}
               className="rounded-full p-2 transition hover:bg-white/20"
-              aria-label="Close assistant"
             >
               <X size={21} />
             </button>
           </div>
 
-          {/* Language Selector */}
+          {/* Language */}
           <div className="flex items-center justify-between border-b border-purple-100 bg-white px-4 py-3">
             <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
               <Languages size={17} className="text-purple-600" />
@@ -227,7 +286,7 @@ export default function AIAssistant() {
               <button
                 type="button"
                 onClick={() => changeLanguage("en-US")}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
                   language === "en-US"
                     ? "bg-purple-600 text-white"
                     : "text-purple-700 hover:bg-purple-100"
@@ -239,7 +298,7 @@ export default function AIAssistant() {
               <button
                 type="button"
                 onClick={() => changeLanguage("fa-IR")}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
                   language === "fa-IR"
                     ? "bg-purple-600 text-white"
                     : "text-purple-700 hover:bg-purple-100"
@@ -275,7 +334,7 @@ export default function AIAssistant() {
 
                 <div className="max-w-[80%]">
                   <div
-                    className={`rounded-2xl px-3 py-2 text-sm leading-6 ${
+                    className={`rounded-2xl px-3 py-2 text-sm leading-6 whitespace-pre-wrap ${
                       item.role === "user"
                         ? "rounded-tr-sm bg-purple-600 text-white"
                         : "rounded-tl-sm bg-white text-gray-700 shadow-sm"
@@ -298,10 +357,17 @@ export default function AIAssistant() {
               </div>
             ))}
 
+            {isLoading && (
+              <div className="flex items-center gap-2 text-sm text-purple-600">
+                <Bot size={18} />
+                <span className="animate-pulse">LEDORA AI is thinking...</span>
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Voice Error */}
+          {/* Error */}
           {voiceError && (
             <div className="border-t border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
               {voiceError}
@@ -330,19 +396,19 @@ export default function AIAssistant() {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder={isListening ? "Listening..." : "Write or speak..."}
-              className="min-w-0 flex-1 rounded-xl border border-purple-100 px-3 py-3 text-sm outline-none transition focus:border-purple-400"
+              className="min-w-0 flex-1 rounded-xl border border-purple-100 px-3 py-3 text-sm outline-none focus:border-purple-400"
             />
 
             <button
               type="submit"
-              disabled={!message.trim()}
+              disabled={!message.trim() || isLoading}
               className="rounded-xl bg-purple-600 p-3 text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Send size={18} />
             </button>
           </form>
 
-          {/* Voice Controls */}
+          {/* Voice Status */}
           <div className="flex items-center justify-between border-t border-purple-100 bg-purple-50 px-4 py-2">
             <div className="flex items-center gap-2 text-xs text-purple-600">
               <span
@@ -350,7 +416,12 @@ export default function AIAssistant() {
                   isListening ? "animate-pulse bg-red-500" : "bg-green-500"
                 }`}
               />
-              {isListening ? "Listening to you..." : "Voice assistant ready"}
+
+              {isListening
+                ? "Listening to you..."
+                : isLoading
+                  ? "AI is responding..."
+                  : "Voice assistant ready"}
             </div>
 
             {isSpeaking && (
@@ -367,8 +438,9 @@ export default function AIAssistant() {
         </div>
       )}
 
-      {/* Cute Floating Robot */}
+      {/* Floating Button */}
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Toggle AI Assistant"
         className="group relative flex h-[72px] w-[72px] items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-purple-500 via-purple-600 to-pink-500 text-white shadow-xl transition duration-300 hover:-translate-y-2 hover:scale-110 hover:shadow-purple-300"

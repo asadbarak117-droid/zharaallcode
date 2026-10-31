@@ -1,39 +1,22 @@
-const jwt = require("jsonwebtoken");
-const Admin = require("../moduls/Admin");
+const express = require("express");
+const rateLimit = require("express-rate-limit");
 
-const adminAuth = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
+const adminAuth = require("../middleware/adminAuth");
+const { adminAIChat } = require("../controllers/adminAIController");
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({
-        message: "Access denied. Please login.",
-      });
-    }
+const router = express.Router();
 
-    const token = authHeader.split(" ")[1];
+const adminAILimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many messages. Please try again later.",
+  },
+});
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+router.post("/chat", adminAuth, adminAILimiter, adminAIChat);
 
-    const admin = await Admin.findById(decoded.id);
-
-    if (!admin || !admin.isActive) {
-      return res.status(401).json({
-        message: "Admin account is inactive or unavailable",
-      });
-    }
-
-    req.admin = {
-      id: admin._id.toString(),
-      role: admin.role,
-    };
-
-    next();
-  } catch (error) {
-    return res.status(401).json({
-      message: "Invalid or expired token",
-    });
-  }
-};
-
-module.exports = adminAuth;
+module.exports = router;
