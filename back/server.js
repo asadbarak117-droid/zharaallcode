@@ -14,15 +14,18 @@ const consultationRequestRoutes = require("./routes/consultationRequestRoute");
 const accountingRoutes = require("./routes/accountingroute");
 const adminRoutes = require("./routes/adminRoutes");
 const aiRoutes = require("./routes/aiRoutes");
+const adminAIRoutes = require("./routes/adminAIRoutes");
+
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/api/health", (req, res) => {
   res.json({ message: "Backend is working" });
 });
+
 app.use("/api/home", homeRoutes);
 app.use("/api/productsection", productRoutes);
 app.use("/api/header", headerRoutes);
@@ -33,6 +36,9 @@ app.use("/api/beauty-problems", consultationRoutes);
 app.use("/api/accounting", accountingRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/ai", aiRoutes);
+
+// Admin AI - Groq
+app.use("/api/admin-ai", adminAIRoutes);
 
 const PORT = process.env.PORT || 5000;
 
