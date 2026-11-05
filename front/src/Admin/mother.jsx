@@ -29,15 +29,24 @@ export default function Mother() {
 
   const path = location.pathname;
 
-  const [sidebarOpen, setSidebarOpen] = useState(path === "/admin");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
   const [websiteExpanded, setWebsiteExpanded] = useState(
     path.startsWith("/admin/website"),
   );
 
   const isDashboard = path === "/admin";
 
+  // Close sidebar whenever the page changes
   useEffect(() => {
-    setWebsiteExpanded(path.startsWith("/admin/website"));
+    setSidebarOpen(false);
+  }, [path]);
+
+  // Automatically expand Website Management
+  useEffect(() => {
+    if (path.startsWith("/admin/website")) {
+      setWebsiteExpanded(true);
+    }
   }, [path]);
 
   const menuItems = [
@@ -124,7 +133,7 @@ export default function Mother() {
     if (item.children) {
       setWebsiteExpanded((previous) => !previous);
 
-      if (path !== item.path) {
+      if (!path.startsWith(item.path)) {
         navigate(item.path);
       }
 
@@ -136,10 +145,6 @@ export default function Mother() {
 
   const navigateTo = (targetPath) => {
     navigate(targetPath);
-
-    if (window.innerWidth < 768) {
-      setSidebarOpen(false);
-    }
   };
 
   return (
@@ -156,8 +161,8 @@ export default function Mother() {
       {/* SIDEBAR */}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-72 shrink-0 flex-col overflow-y-auto bg-slate-950 p-5 text-white shadow-xl transition-transform duration-300 md:sticky md:top-0 md:z-30 md:translate-x-0 md:shadow-none ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full md:hidden"
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-72 shrink-0 flex-col overflow-y-auto bg-slate-950 p-5 text-white shadow-xl transition-transform duration-300 md:sticky md:top-0 md:z-30 md:shadow-none ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* LOGO */}

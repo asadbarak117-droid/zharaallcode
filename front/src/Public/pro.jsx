@@ -7,15 +7,13 @@ import {
   ArrowRight,
   Sparkles,
   X,
-  Play,
-  Upload,
   MessageCircle,
   Send,
   Video,
-  Trash2,
 } from "lucide-react";
 
 const API_URL = "https://zharaallcode.onrender.com/api/productsection";
+const VIDEOS_API_URL = `${API_URL}/videos`;
 
 const defaultCategories = [
   "Makeup",
@@ -73,6 +71,16 @@ function normalizeProduct(product, index) {
   };
 }
 
+function normalizeVideo(video, index) {
+  return {
+    id: String(video._id || video.id || video.publicId || index),
+    title: video.title || video.name || "Beauty Video",
+    description: video.description || "",
+    url: video.url || video.videoUrl || video.secure_url || "",
+    thumbnail: video.thumbnail || video.thumbnailUrl || "",
+  };
+}
+
 function normalizeConfig(data) {
   const source = data?.data ?? data?.content ?? data ?? {};
 
@@ -94,23 +102,23 @@ function normalizeConfig(data) {
         ? source.categories
         : defaultCategories,
     products: Array.isArray(source.products) ? source.products : [],
+    videos: Array.isArray(source.videos) ? source.videos : [],
   };
 }
 
 export default function Products() {
   const [config, setConfig] = useState(() => normalizeConfig({}));
   const [products, setProducts] = useState([]);
+  const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [videoLoading, setVideoLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [videoError, setVideoError] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Products");
   const [favorites, setFavorites] = useState([]);
   const [showFavorites, setShowFavorites] = useState(false);
-
-  const [videos, setVideos] = useState([]);
-  const [videoTitle, setVideoTitle] = useState("");
-  const [videoDescription, setVideoDescription] = useState("");
 
   const [comments, setComments] = useState([]);
   const [commentName, setCommentName] = useState("");
@@ -176,6 +184,12 @@ export default function Products() {
 
         setConfig(data);
         setProducts(data.products.map(normalizeProduct));
+
+        if (data.videos.length > 0) {
+          setVideos(
+            data.videos.map(normalizeVideo).filter((video) => video.url),
+          );
+        }
       } catch (error) {
         if (error.name !== "AbortError") {
           console.error("Could not load product page:", error);
@@ -196,10 +210,53 @@ export default function Products() {
   }, []);
 
   useEffect(() => {
-    return () => {
-      videos.forEach((video) => URL.revokeObjectURL(video.url));
-    };
-  }, [videos]);
+    const controller = new AbortController();
+
+    async function loadVideos() {
+      try {
+        setVideoLoading(true);
+        setVideoError("");
+
+        const response = await fetch(VIDEOS_API_URL, {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error(`Video request failed: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        const videoList = Array.isArray(result)
+          ? result
+          : Array.isArray(result?.videos)
+            ? result.videos
+            : Array.isArray(result?.data?.videos)
+              ? result.data.videos
+              : Array.isArray(result?.data)
+                ? result.data
+                : [];
+
+        setVideos(videoList.map(normalizeVideo).filter((video) => video.url));
+      } catch (error) {
+        if (error.name !== "AbortError") {
+          console.error("Could not load beauty videos:", error);
+          setVideoError(
+            "Beauty videos are temporarily unavailable. Please try again later.",
+          );
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setVideoLoading(false);
+        }
+      }
+    }
+
+    loadVideos();
+
+    return () => controller.abort();
+  }, []);
 
   const filteredProducts = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
@@ -241,35 +298,6 @@ export default function Products() {
     });
   };
 
-  const handleVideoUpload = (event) => {
-    const files = Array.from(event.target.files || []);
-
-    const newVideos = files
-      .filter((file) => file.type.startsWith("video/"))
-      .map((file) => ({
-        id: `${Date.now()}-${Math.random()}`,
-        file,
-        url: URL.createObjectURL(file),
-        title: file.name.replace(/\.[^/.]+$/, ""),
-        description: "",
-      }));
-
-    setVideos((current) => [...current, ...newVideos]);
-    event.target.value = "";
-  };
-
-  const removeVideo = (id) => {
-    setVideos((current) => {
-      const video = current.find((item) => item.id === id);
-
-      if (video) {
-        URL.revokeObjectURL(video.url);
-      }
-
-      return current.filter((item) => item.id !== id);
-    });
-  };
-
   const addComment = (event) => {
     event.preventDefault();
 
@@ -294,8 +322,6 @@ export default function Products() {
   return (
     <main className="min-h-screen bg-white px-4 py-10 text-slate-900 sm:px-6 lg:px-10">
       <div className="mx-auto max-w-7xl">
-        {/* PAGE HEADER */}
-
         <motion.header
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -315,8 +341,6 @@ export default function Products() {
             {config.pageDescription}
           </p>
         </motion.header>
-
-        {/* HERO */}
 
         <motion.section
           initial={{ opacity: 0, y: 25 }}
@@ -372,8 +396,6 @@ export default function Products() {
             </button>
           </div>
         </motion.section>
-
-        {/* SHOP BY CATEGORY - GRID */}
 
         <section className="mb-16">
           <div className="mb-6">
@@ -437,72 +459,65 @@ export default function Products() {
           </div>
         </section>
 
-        {/* BEAUTY VIDEOS */}
+        {/* BEAUTY VIDEOS - CUSTOMER READ ONLY */}
 
         <section className="mb-16">
-          <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="text-sm font-bold uppercase tracking-widest text-sky-600">
-                Beauty Inspiration
-              </p>
+          <div className="mb-7">
+            <p className="text-sm font-bold uppercase tracking-widest text-sky-600">
+              Beauty Inspiration
+            </p>
 
-              <h2 className="mt-2 text-2xl font-bold md:text-3xl">
-                Beauty Videos
-              </h2>
+            <h2 className="mt-2 text-2xl font-bold md:text-3xl">
+              Beauty Videos
+            </h2>
 
-              <p className="mt-2 text-slate-500">
-                Explore tutorials, product demonstrations and beauty tips.
-              </p>
-            </div>
-
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-sky-600 px-5 py-3 font-semibold text-white transition hover:bg-sky-700">
-              <Upload size={19} />
-              Upload Videos
-              <input
-                type="file"
-                accept="video/*"
-                multiple
-                onChange={handleVideoUpload}
-                className="hidden"
-              />
-            </label>
+            <p className="mt-2 text-slate-500">
+              Explore tutorials, product demonstrations and beauty tips.
+            </p>
           </div>
 
-          {videos.length > 0 ? (
+          {videoLoading ? (
+            <div className="rounded-3xl bg-slate-50 px-6 py-14 text-center">
+              <Video size={35} className="mx-auto text-sky-500" />
+              <p className="mt-4 font-semibold text-slate-600">
+                Loading beauty videos...
+              </p>
+            </div>
+          ) : videos.length > 0 ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {videos.map((video) => (
+              {videos.map((video, index) => (
                 <motion.article
                   key={video.id}
                   initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: (index % 3) * 0.05 }}
+                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
                 >
-                  <div className="relative bg-black">
+                  <div className="relative aspect-video bg-black">
                     <video
                       src={video.url}
+                      poster={video.thumbnail || undefined}
                       controls
                       playsInline
-                      className="aspect-video w-full"
+                      preload="metadata"
+                      className="h-full w-full object-contain"
                     />
                   </div>
 
-                  <div className="flex items-center justify-between gap-3 p-4">
-                    <div className="min-w-0">
-                      <h3 className="truncate font-bold text-slate-800">
-                        {video.title}
-                      </h3>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Uploaded video
-                      </p>
-                    </div>
+                  <div className="p-4">
+                    <h3 className="font-bold text-slate-800">{video.title}</h3>
 
-                    <button
-                      onClick={() => removeVideo(video.id)}
-                      aria-label="Remove video"
-                      className="rounded-lg p-2 text-red-500 transition hover:bg-red-50"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    {video.description && (
+                      <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-500">
+                        {video.description}
+                      </p>
+                    )}
+
+                    <p className="mt-3 flex items-center gap-2 text-xs font-medium text-sky-600">
+                      <Play size={14} />
+                      LEDORA Beauty Video
+                    </p>
                   </div>
                 </motion.article>
               ))}
@@ -518,14 +533,16 @@ export default function Products() {
               </h3>
 
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-                Upload your beauty tutorials, product demonstrations and
-                collection videos.
+                Our beauty tutorials and product demonstrations will appear here
+                when they are uploaded by LEDORA.
               </p>
+
+              {videoError && (
+                <p className="mt-3 text-sm text-amber-700">{videoError}</p>
+              )}
             </div>
           )}
         </section>
-
-        {/* PRODUCT SEARCH AND FILTERS */}
 
         <section className="mb-8">
           <div className="mb-6">
@@ -625,8 +642,6 @@ export default function Products() {
             )}
           </div>
         </section>
-
-        {/* PRODUCT GRID */}
 
         <section id="product-grid" className="scroll-mt-8">
           {loading ? (
@@ -764,8 +779,6 @@ export default function Products() {
           )}
         </section>
 
-        {/* CUSTOMER COMMENTS */}
-
         <section className="mt-20">
           <div className="mb-8 text-center">
             <p className="text-sm font-bold uppercase tracking-widest text-sky-600">
@@ -782,8 +795,6 @@ export default function Products() {
           </div>
 
           <div className="grid gap-8 lg:grid-cols-2">
-            {/* COMMENT FORM */}
-
             <form
               onSubmit={addComment}
               className="rounded-3xl border border-slate-200 bg-slate-50 p-6 md:p-8"
@@ -838,8 +849,6 @@ export default function Products() {
                 Submit Comment
               </button>
             </form>
-
-            {/* COMMENTS LIST */}
 
             <div className="rounded-3xl border border-slate-200 bg-white p-6 md:p-8">
               <div className="mb-6 flex items-center justify-between">
@@ -905,8 +914,6 @@ export default function Products() {
             </div>
           </div>
         </section>
-
-        {/* CONTACT SECTION */}
 
         <motion.section
           initial={{ opacity: 0, y: 20 }}

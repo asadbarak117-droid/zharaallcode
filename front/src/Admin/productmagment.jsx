@@ -21,8 +21,6 @@ import {
   LayoutGrid,
   Star,
   ExternalLink,
-  Play,
-  Filter,
   EyeOff,
 } from "lucide-react";
 
@@ -49,13 +47,16 @@ const initialConfig = {
   heroImage:
     "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=1600&q=80",
   heroColor: "#e0f2fe",
+
   pageTitle: "Discover Your Beauty",
   pageDescription: "Explore makeup, skincare, hair care, perfumes, and more.",
+
   categories: DEFAULT_CATEGORIES,
   categoryDetails: [],
   products: [],
   videos: [],
   comments: [],
+
   searchSection: {
     enabled: true,
     title: "Find Your Beauty Favorites",
@@ -65,6 +66,7 @@ const initialConfig = {
     showFavorites: true,
     showProductCount: true,
   },
+
   contactSection: {
     enabled: true,
     title: "Need Help Choosing?",
@@ -73,12 +75,14 @@ const initialConfig = {
     buttonText: "Contact Us",
     buttonLink: "/connect",
   },
+
   commentsSection: {
     enabled: true,
     title: "Customer Reviews",
     description: "Share your experience with our beauty collection.",
     showForm: true,
   },
+
   categoryDesign: {
     title: "Shop by Category",
     description: "Explore our beauty collections.",
@@ -86,6 +90,42 @@ const initialConfig = {
     cardStyle: "rounded",
   },
 };
+
+const emptyProduct = {
+  name: "",
+  code: "",
+  category: "Makeup",
+  image: "",
+  description: "",
+  price: "",
+  badge: "",
+};
+
+const emptyVideo = {
+  title: "",
+  description: "",
+  url: "",
+};
+
+const emptyComment = {
+  name: "",
+  message: "",
+  rating: 5,
+  approved: true,
+};
+
+const tabs = [
+  { id: "hero", label: "Product Hero", icon: Layers },
+  { id: "content", label: "Page Content", icon: Type },
+  { id: "categories", label: "Categories", icon: ImageIcon },
+  { id: "products", label: "Products", icon: ShoppingBag },
+  { id: "design", label: "Colors & Design", icon: Palette },
+  { id: "videos", label: "Beauty Videos", icon: Video },
+  { id: "comments", label: "Customer Comments", icon: MessageSquare },
+  { id: "search", label: "Search & Filters", icon: Search },
+  { id: "contact", label: "Contact Section", icon: Phone },
+  { id: "categoryDesign", label: "Category Design", icon: LayoutGrid },
+];
 
 function normalizeConfig(data) {
   const source = data?.data ?? data?.content ?? data;
@@ -104,27 +144,34 @@ function normalizeConfig(data) {
   return {
     ...initialConfig,
     ...source,
+
     categories: Array.isArray(source.categories)
       ? source.categories.filter((item) => typeof item === "string")
       : [...DEFAULT_CATEGORIES],
+
     products: Array.isArray(source.products) ? source.products : [],
     videos: Array.isArray(source.videos) ? source.videos : [],
     comments: Array.isArray(source.comments) ? source.comments : [],
+
     categoryDetails: Array.isArray(source.categoryDetails)
       ? source.categoryDetails
       : [],
+
     searchSection: {
       ...initialConfig.searchSection,
       ...(source.searchSection || {}),
     },
+
     contactSection: {
       ...initialConfig.contactSection,
       ...(source.contactSection || {}),
     },
+
     commentsSection: {
       ...initialConfig.commentsSection,
       ...(source.commentsSection || {}),
     },
+
     categoryDesign: {
       ...initialConfig.categoryDesign,
       ...(source.categoryDesign || {}),
@@ -132,13 +179,39 @@ function normalizeConfig(data) {
   };
 }
 
+function createId(prefix = "item") {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function getItemId(item) {
+  return String(item?._id ?? item?.id ?? "");
+}
+
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
+
     reader.onload = () => resolve(reader.result);
     reader.onerror = () => reject(new Error("Could not read image."));
+
     reader.readAsDataURL(file);
   });
+}
+
+async function readResponse(response) {
+  const text = await response.text();
+
+  if (!text) return {};
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error("The server did not return valid JSON.");
+  }
 }
 
 function Field({
@@ -155,6 +228,7 @@ function Field({
   return (
     <label className="block space-y-1.5">
       <span className="text-sm font-medium text-slate-600">{label}</span>
+
       {multiline ? (
         <textarea
           value={value ?? ""}
@@ -183,12 +257,14 @@ function Toggle({ label, checked, onChange, description }) {
         <span className="block text-sm font-semibold text-slate-700">
           {label}
         </span>
+
         {description && (
           <span className="mt-1 block text-xs text-slate-500">
             {description}
           </span>
         )}
       </span>
+
       <input
         type="checkbox"
         checked={Boolean(checked)}
@@ -219,18 +295,23 @@ function ImagePicker({ label, value, onChange }) {
   async function handleFileChange(event) {
     const input = event.target;
     const file = input.files?.[0];
+
     if (!file) return;
 
     try {
       if (!file.type.startsWith("image/")) {
         throw new Error("Please select an image file.");
       }
+
       if (file.size > MAX_IMAGE_SIZE) {
         throw new Error("Image size must be less than 5 MB.");
       }
+
       setReading(true);
       setImageError("");
-      onChange(await fileToBase64(file));
+
+      const base64 = await fileToBase64(file);
+      onChange(base64);
     } catch (error) {
       window.alert(error.message || "Could not read image.");
     } finally {
@@ -249,9 +330,11 @@ function ImagePicker({ label, value, onChange }) {
 
     try {
       const parsedUrl = new URL(url);
+
       if (!["http:", "https:"].includes(parsedUrl.protocol)) {
         throw new Error("Invalid URL");
       }
+
       setImageError("");
       onChange(url);
     } catch {
@@ -276,6 +359,7 @@ function ImagePicker({ label, value, onChange }) {
           <ImageIcon size={16} className="mr-2 inline" />
           Image URL
         </button>
+
         <button
           type="button"
           onClick={() => setSource("device")}
@@ -317,6 +401,7 @@ function ImagePicker({ label, value, onChange }) {
               placeholder="https://example.com/image.jpg"
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-sky-400"
             />
+
             <button
               type="button"
               onClick={applyUrl}
@@ -333,7 +418,9 @@ function ImagePicker({ label, value, onChange }) {
             ) : (
               <Plus size={17} />
             )}
+
             {reading ? "Reading..." : "Choose Image"}
+
             <input
               type="file"
               accept="image/*"
@@ -369,60 +456,46 @@ function ImagePicker({ label, value, onChange }) {
   );
 }
 
-const tabs = [
-  { id: "hero", label: "Product Hero", icon: Layers },
-  { id: "content", label: "Page Content", icon: Type },
-  { id: "categories", label: "Categories", icon: ImageIcon },
-  { id: "products", label: "Products", icon: ShoppingBag },
-  { id: "design", label: "Colors & Design", icon: Palette },
-  { id: "videos", label: "Beauty Videos", icon: Video },
-  { id: "comments", label: "Customer Comments", icon: MessageSquare },
-  { id: "search", label: "Search & Filters", icon: Search },
-  { id: "contact", label: "Contact Section", icon: Phone },
-  { id: "categoryDesign", label: "Category Design", icon: LayoutGrid },
-];
-
-const emptyProduct = {
-  name: "",
-  code: "",
-  category: "Makeup",
-  image: "",
-  description: "",
-  price: "",
-  badge: "",
-};
-
-const emptyVideo = {
-  title: "",
-  description: "",
-  url: "",
-};
-
-const emptyComment = {
-  name: "",
-  message: "",
-  rating: 5,
-  approved: true,
-};
-
 export default function ProductManagement() {
   const [config, setConfig] = useState(() => normalizeConfig(initialConfig));
+
   const [activeTab, setActiveTab] = useState("hero");
   const [categoryInput, setCategoryInput] = useState("");
+
   const [productForm, setProductForm] = useState(emptyProduct);
   const [videoForm, setVideoForm] = useState(emptyVideo);
   const [commentForm, setCommentForm] = useState(emptyComment);
+
   const [editingId, setEditingId] = useState(null);
   const [editingVideoId, setEditingVideoId] = useState(null);
   const [editingCommentId, setEditingCommentId] = useState(null);
+
   const [showProductForm, setShowProductForm] = useState(false);
   const [showVideoForm, setShowVideoForm] = useState(false);
   const [showCommentForm, setShowCommentForm] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(false);
+
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("info");
+
+  const cardClass =
+    "rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7";
+
+  const buttonClass =
+    "inline-flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60";
+
+  const secondaryButtonClass =
+    "inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50";
+
+  const messageClass =
+    messageType === "error"
+      ? "border-red-200 bg-red-50 text-red-700"
+      : messageType === "success"
+        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+        : "border-sky-200 bg-sky-50 text-sky-800";
 
   function notify(text, type = "info") {
     setMessage(text);
@@ -435,42 +508,45 @@ export default function ProductManagement() {
     async function loadConfig() {
       try {
         setLoading(true);
+
         const response = await fetch(API_URL, {
           method: "GET",
           cache: "no-store",
           signal: controller.signal,
         });
 
-        const text = await response.text();
-        let data = {};
-
-        try {
-          data = text ? JSON.parse(text) : {};
-        } catch {
-          throw new Error("The server did not return valid JSON.");
-        }
+        const data = await readResponse(response);
 
         if (!response.ok) {
-          throw new Error(data.message || `Request failed: ${response.status}`);
+          throw new Error(
+            data.message || data.error || `Request failed: ${response.status}`,
+          );
         }
 
         setConfig(normalizeConfig(data));
       } catch (error) {
         if (error.name !== "AbortError") {
-          console.error(error);
+          console.error("Load error:", error);
           notify(`Could not load settings: ${error.message}`, "error");
         }
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     }
 
     loadConfig();
+
     return () => controller.abort();
   }, []);
 
   function updateField(key, value) {
-    setConfig((current) => ({ ...current, [key]: value }));
+    setConfig((current) => ({
+      ...current,
+      [key]: value,
+    }));
+
     setMessage("");
   }
 
@@ -482,6 +558,7 @@ export default function ProductManagement() {
         [key]: value,
       },
     }));
+
     setMessage("");
   }
 
@@ -494,18 +571,13 @@ export default function ProductManagement() {
 
       const response = await fetch(API_URL, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(config),
       });
 
-      const text = await response.text();
-      let data = {};
-
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch {
-        throw new Error("The server did not return valid JSON.");
-      }
+      const data = await readResponse(response);
 
       if (!response.ok) {
         throw new Error(
@@ -513,7 +585,21 @@ export default function ProductManagement() {
         );
       }
 
-      setConfig(normalizeConfig(data));
+      // Only replace local state if the server actually returned config data.
+      // Some APIs return only { message: "Updated successfully" }.
+      const returnedConfig = data?.data ?? data?.content ?? data;
+
+      if (
+        returnedConfig &&
+        typeof returnedConfig === "object" &&
+        !Array.isArray(returnedConfig) &&
+        (Array.isArray(returnedConfig.products) ||
+          Array.isArray(returnedConfig.categories) ||
+          returnedConfig.heroTitle !== undefined)
+      ) {
+        setConfig(normalizeConfig(returnedConfig));
+      }
+
       notify("Changes saved successfully.", "success");
     } catch (error) {
       console.error("Save error:", error);
@@ -526,33 +612,34 @@ export default function ProductManagement() {
   function addCategory() {
     const name = categoryInput.trim();
 
-    if (!name) return notify("Enter a category name first.", "error");
+    if (!name) {
+      return notify("Enter a category name first.", "error");
+    }
 
-    if (
-      config.categories.some(
-        (category) => category.toLowerCase() === name.toLowerCase(),
-      )
-    ) {
+    const exists = config.categories.some(
+      (category) => category.toLowerCase() === name.toLowerCase(),
+    );
+
+    if (exists) {
       return notify("This category already exists.", "error");
     }
 
     updateField("categories", [...config.categories, name]);
     setCategoryInput("");
+
     notify("Category added. Save your changes.", "success");
   }
 
   function deleteCategory(name) {
     const used = config.products.some((product) => product.category === name);
 
-    if (
-      !window.confirm(
-        used
-          ? `This category is used by products. Delete "${name}" anyway?`
-          : `Delete "${name}"?`,
-      )
-    ) {
-      return;
-    }
+    const confirmed = window.confirm(
+      used
+        ? `This category is used by products. Delete "${name}" anyway?`
+        : `Delete "${name}"?`,
+    );
+
+    if (!confirmed) return;
 
     setConfig((current) => ({
       ...current,
@@ -582,28 +669,43 @@ export default function ProductManagement() {
 
       if (index === -1) {
         details.push({
-          ...getCategoryDetail(name),
+          name,
+          subtitle: "",
+          image: "",
           [key]: value,
         });
       } else {
-        details[index] = { ...details[index], [key]: value };
+        details[index] = {
+          ...details[index],
+          [key]: value,
+        };
       }
 
-      return { ...current, categoryDetails: details };
+      return {
+        ...current,
+        categoryDetails: details,
+      };
     });
+
+    setMessage("");
   }
+
+  // PRODUCTS
 
   function openAddProduct() {
     setEditingId(null);
+
     setProductForm({
       ...emptyProduct,
       category: config.categories[0] || "Makeup",
     });
+
     setShowProductForm(true);
   }
 
   function openEditProduct(product) {
-    setEditingId(String(product._id ?? product.id ?? ""));
+    setEditingId(getItemId(product));
+
     setProductForm({
       name: product.name ?? "",
       code: product.code ?? "",
@@ -613,6 +715,7 @@ export default function ProductManagement() {
       price: product.price ?? "",
       badge: product.badge ?? "",
     });
+
     setShowProductForm(true);
   }
 
@@ -638,37 +741,53 @@ export default function ProductManagement() {
 
       if (editingId !== null) {
         const index = products.findIndex(
-          (item) => String(item._id ?? item.id ?? "") === editingId,
+          (item) => getItemId(item) === editingId,
         );
 
         if (index !== -1) {
-          products[index] = { ...products[index], ...product };
+          products[index] = {
+            ...products[index],
+            ...product,
+          };
         } else {
-          products.push({ ...product, id: `new-${Date.now()}` });
+          products.push({
+            ...product,
+            id: createId("product"),
+          });
         }
       } else {
-        products.push({ ...product, id: `new-${Date.now()}` });
+        products.push({
+          ...product,
+          id: createId("product"),
+        });
       }
 
-      return { ...current, products };
+      return {
+        ...current,
+        products,
+      };
     });
 
     setShowProductForm(false);
+    setEditingId(null);
+
     notify("Product updated. Click Save Changes.", "info");
   }
 
   function deleteProduct(product) {
     if (!window.confirm(`Delete "${product.name}"?`)) return;
 
-    const id = String(product._id ?? product.id ?? "");
+    const id = getItemId(product);
 
-    updateField(
-      "products",
-      config.products.filter(
-        (item) => String(item._id ?? item.id ?? "") !== id,
-      ),
-    );
+    setConfig((current) => ({
+      ...current,
+      products: current.products.filter((item) => getItemId(item) !== id),
+    }));
+
+    notify("Product deleted. Click Save Changes.", "info");
   }
+
+  // VIDEOS
 
   function openAddVideo() {
     setEditingVideoId(null);
@@ -677,12 +796,14 @@ export default function ProductManagement() {
   }
 
   function openEditVideo(video) {
-    setEditingVideoId(String(video._id ?? video.id ?? ""));
+    setEditingVideoId(getItemId(video));
+
     setVideoForm({
       title: video.title ?? "",
       description: video.description ?? "",
       url: video.url ?? "",
     });
+
     setShowVideoForm(true);
   }
 
@@ -699,7 +820,10 @@ export default function ProductManagement() {
 
     try {
       const url = new URL(videoForm.url.trim());
-      if (!["http:", "https:"].includes(url.protocol)) throw new Error();
+
+      if (!["http:", "https:"].includes(url.protocol)) {
+        throw new Error();
+      }
     } catch {
       return notify("Enter a valid video URL.", "error");
     }
@@ -716,34 +840,53 @@ export default function ProductManagement() {
 
       if (editingVideoId !== null) {
         const index = videos.findIndex(
-          (item) => String(item._id ?? item.id ?? "") === editingVideoId,
+          (item) => getItemId(item) === editingVideoId,
         );
 
-        if (index !== -1) videos[index] = { ...videos[index], ...video };
-        else videos.push({ ...video, id: `video-${Date.now()}` });
+        if (index !== -1) {
+          videos[index] = {
+            ...videos[index],
+            ...video,
+          };
+        } else {
+          videos.push({
+            ...video,
+            id: createId("video"),
+          });
+        }
       } else {
-        videos.push({ ...video, id: `video-${Date.now()}` });
+        videos.push({
+          ...video,
+          id: createId("video"),
+        });
       }
 
-      return { ...current, videos };
+      return {
+        ...current,
+        videos,
+      };
     });
 
     setShowVideoForm(false);
+    setEditingVideoId(null);
+
     notify("Video updated. Click Save Changes.", "info");
   }
 
   function deleteVideo(video) {
     if (!window.confirm(`Delete video "${video.title}"?`)) return;
 
-    const id = String(video._id ?? video.id ?? "");
+    const id = getItemId(video);
 
     setConfig((current) => ({
       ...current,
-      videos: current.videos.filter(
-        (item) => String(item._id ?? item.id ?? "") !== id,
-      ),
+      videos: current.videos.filter((item) => getItemId(item) !== id),
     }));
+
+    notify("Video deleted. Click Save Changes.", "info");
   }
+
+  // COMMENTS
 
   function openAddComment() {
     setEditingCommentId(null);
@@ -752,13 +895,15 @@ export default function ProductManagement() {
   }
 
   function openEditComment(comment) {
-    setEditingCommentId(String(comment._id ?? comment.id ?? ""));
+    setEditingCommentId(getItemId(comment));
+
     setCommentForm({
       name: comment.name ?? "",
       message: comment.message ?? "",
       rating: Number(comment.rating ?? 5),
       approved: comment.approved !== false,
     });
+
     setShowCommentForm(true);
   }
 
@@ -781,80 +926,90 @@ export default function ProductManagement() {
 
       if (editingCommentId !== null) {
         const index = comments.findIndex(
-          (item) => String(item._id ?? item.id ?? "") === editingCommentId,
+          (item) => getItemId(item) === editingCommentId,
         );
 
-        if (index !== -1) comments[index] = { ...comments[index], ...comment };
-        else comments.push({ ...comment, id: `comment-${Date.now()}` });
+        if (index !== -1) {
+          comments[index] = {
+            ...comments[index],
+            ...comment,
+          };
+        } else {
+          comments.push({
+            ...comment,
+            id: createId("comment"),
+          });
+        }
       } else {
-        comments.push({ ...comment, id: `comment-${Date.now()}` });
+        comments.push({
+          ...comment,
+          id: createId("comment"),
+        });
       }
 
-      return { ...current, comments };
+      return {
+        ...current,
+        comments,
+      };
     });
 
     setShowCommentForm(false);
+    setEditingCommentId(null);
+
     notify("Comment updated. Click Save Changes.", "info");
   }
 
   function deleteComment(comment) {
     if (!window.confirm(`Delete comment from "${comment.name}"?`)) return;
 
-    const id = String(comment._id ?? comment.id ?? "");
+    const id = getItemId(comment);
 
     setConfig((current) => ({
       ...current,
-      comments: current.comments.filter(
-        (item) => String(item._id ?? item.id ?? "") !== id,
-      ),
+      comments: current.comments.filter((item) => getItemId(item) !== id),
     }));
+
+    notify("Comment deleted. Click Save Changes.", "info");
   }
 
   function toggleCommentApproval(comment) {
-    const id = String(comment._id ?? comment.id ?? "");
+    const id = getItemId(comment);
 
     setConfig((current) => ({
       ...current,
       comments: current.comments.map((item) =>
-        String(item._id ?? item.id ?? "") === id
-          ? { ...item, approved: item.approved === false }
+        getItemId(item) === id
+          ? {
+              ...item,
+              approved: item.approved === false,
+            }
           : item,
       ),
     }));
   }
 
   function resetSettings() {
-    if (
-      !window.confirm(
-        "Restore all default settings and remove products, videos, and comments? Save Changes will store this reset.",
-      )
-    ) {
-      return;
-    }
+    const confirmed = window.confirm(
+      "Restore all default settings and remove products, videos, and comments? Save Changes will store this reset.",
+    );
+
+    if (!confirmed) return;
 
     setConfig(normalizeConfig(initialConfig));
+
     setCategoryInput("");
     setShowProductForm(false);
     setShowVideoForm(false);
     setShowCommentForm(false);
+
+    setEditingId(null);
+    setEditingVideoId(null);
+    setEditingCommentId(null);
+
     notify("Default settings loaded. Click Save Changes.", "info");
   }
 
-  const cardClass =
-    "rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7";
-
-  const buttonClass =
-    "inline-flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60";
-
-  const secondaryButtonClass =
-    "inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50";
-
-  const messageClass =
-    messageType === "error"
-      ? "border-red-200 bg-red-50 text-red-700"
-      : messageType === "success"
-        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-        : "border-sky-200 bg-sky-50 text-sky-800";
+  // PREVIEW
 
   function renderPreview() {
     const search = config.searchSection;
@@ -866,6 +1021,7 @@ export default function ProductManagement() {
       <div className="min-h-screen bg-white text-slate-800">
         <div className="sticky top-0 z-30 flex items-center justify-between bg-slate-950 px-5 py-3 text-white">
           <span className="font-semibold">Products Page Preview</span>
+
           <button
             type="button"
             onClick={() => setPreview(false)}
@@ -893,10 +1049,13 @@ export default function ProductManagement() {
           }}
         >
           <p className="font-semibold">{config.heroBadge}</p>
+
           <h1 className="mt-4 max-w-3xl text-4xl font-bold md:text-6xl">
             {config.heroTitle}
           </h1>
+
           <p className="mt-5 max-w-2xl leading-8">{config.heroDescription}</p>
+
           <span className="mt-7 inline-flex rounded-full bg-sky-500 px-6 py-3 font-semibold text-white">
             {config.heroButton}
           </span>
@@ -940,6 +1099,7 @@ export default function ProductManagement() {
                       <ImageIcon size={32} />
                     </div>
                   )}
+
                   <div className="p-4">
                     <h3 className="font-bold">{category}</h3>
                     <p className="mt-1 text-sm text-slate-500">
@@ -956,10 +1116,11 @@ export default function ProductManagement() {
           <section className="bg-slate-50 px-6 py-12">
             <div className="mx-auto max-w-7xl">
               <h2 className="text-3xl font-bold">Beauty Videos</h2>
+
               <div className="mt-7 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {config.videos.map((video, index) => (
                   <article
-                    key={video._id ?? video.id ?? index}
+                    key={getItemId(video) || index}
                     className="overflow-hidden rounded-2xl border bg-white"
                   >
                     <video
@@ -967,6 +1128,7 @@ export default function ProductManagement() {
                       controls
                       className="aspect-video w-full bg-black"
                     />
+
                     <div className="p-4">
                       <h3 className="font-bold">{video.title}</h3>
                       <p className="mt-2 text-sm text-slate-500">
@@ -980,75 +1142,91 @@ export default function ProductManagement() {
           </section>
         )}
 
-        <section className="mx-auto max-w-7xl px-6 py-12">
-          <h2 className="text-3xl font-bold">{search.title}</h2>
-          <p className="mt-2 text-slate-500">{search.description}</p>
+        {search.enabled && (
+          <section className="mx-auto max-w-7xl px-6 py-12">
+            <h2 className="text-3xl font-bold">{search.title}</h2>
+            <p className="mt-2 text-slate-500">{search.description}</p>
 
-          {search.enabled && search.showSearch && (
-            <div className="mt-5 flex max-w-xl items-center gap-3 rounded-xl border p-3">
-              <Search size={19} />
-              <span className="text-sm text-slate-400">Search products...</span>
-            </div>
-          )}
-
-          {search.showCategoryFilters && (
-            <div className="mt-5 flex flex-wrap gap-2">
-              {config.categories.map((category) => (
-                <span
-                  key={category}
-                  className="rounded-full border px-4 py-2 text-sm"
-                >
-                  {category}
+            {search.showSearch && (
+              <div className="mt-5 flex max-w-xl items-center gap-3 rounded-xl border p-3">
+                <Search size={19} />
+                <span className="text-sm text-slate-400">
+                  Search products...
                 </span>
+              </div>
+            )}
+
+            {search.showCategoryFilters && (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {config.categories.map((category) => (
+                  <span
+                    key={category}
+                    className="rounded-full border px-4 py-2 text-sm"
+                  >
+                    {category}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {search.showProductCount && (
+              <p className="mt-5 text-sm text-slate-500">
+                {config.products.length} products
+              </p>
+            )}
+
+            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {config.products.map((product, index) => (
+                <article
+                  key={getItemId(product) || index}
+                  className="overflow-hidden rounded-2xl border p-3"
+                >
+                  {product.image ? (
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="h-56 w-full rounded-xl object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-56 items-center justify-center rounded-xl bg-slate-100">
+                      <ImageIcon size={30} />
+                    </div>
+                  )}
+
+                  <p className="mt-3 text-xs uppercase text-sky-600">
+                    {product.category}
+                  </p>
+
+                  <h3 className="mt-2 font-semibold">{product.name}</h3>
+
+                  <p className="mt-2 font-bold">
+                    {product.price || "Price on request"}
+                  </p>
+
+                  <p className="mt-2 text-sm text-slate-500">
+                    {product.description}
+                  </p>
+                </article>
               ))}
             </div>
-          )}
-
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {config.products.map((product, index) => (
-              <article
-                key={product._id ?? product.id ?? index}
-                className="overflow-hidden rounded-2xl border p-3"
-              >
-                {product.image ? (
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="h-56 w-full rounded-xl object-cover"
-                  />
-                ) : (
-                  <div className="flex h-56 items-center justify-center rounded-xl bg-slate-100">
-                    <ImageIcon size={30} />
-                  </div>
-                )}
-                <p className="mt-3 text-xs uppercase text-sky-600">
-                  {product.category}
-                </p>
-                <h3 className="mt-2 font-semibold">{product.name}</h3>
-                <p className="mt-2 font-bold">
-                  {product.price || "Price on request"}
-                </p>
-                <p className="mt-2 text-sm text-slate-500">
-                  {product.description}
-                </p>
-              </article>
-            ))}
-          </div>
-        </section>
+          </section>
+        )}
 
         {commentsSection.enabled && (
           <section className="bg-slate-50 px-6 py-12">
             <div className="mx-auto max-w-7xl">
               <h2 className="text-3xl font-bold">{commentsSection.title}</h2>
+
               <p className="mt-2 text-slate-500">
                 {commentsSection.description}
               </p>
+
               <div className="mt-7 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {config.comments
                   .filter((comment) => comment.approved !== false)
                   .map((comment, index) => (
                     <article
-                      key={comment._id ?? comment.id ?? index}
+                      key={getItemId(comment) || index}
                       className="rounded-2xl border bg-white p-5"
                     >
                       <div className="flex gap-1 text-amber-400">
@@ -1061,11 +1239,19 @@ export default function ProductManagement() {
                           <Star key={i} size={16} fill="currentColor" />
                         ))}
                       </div>
+
                       <p className="mt-3 text-slate-600">{comment.message}</p>
+
                       <p className="mt-4 font-semibold">{comment.name}</p>
                     </article>
                   ))}
               </div>
+
+              {commentsSection.showForm && (
+                <p className="mt-6 text-sm text-slate-500">
+                  Customer comment form is enabled on the public page.
+                </p>
+              )}
             </div>
           </section>
         )}
@@ -1073,9 +1259,11 @@ export default function ProductManagement() {
         {contact.enabled && (
           <section className="px-6 py-16 text-center">
             <h2 className="text-3xl font-bold">{contact.title}</h2>
+
             <p className="mx-auto mt-3 max-w-2xl text-slate-500">
               {contact.description}
             </p>
+
             <a
               href={contact.buttonLink}
               className="mt-6 inline-flex rounded-full bg-sky-500 px-7 py-3 font-semibold text-white"
@@ -1101,11 +1289,14 @@ export default function ProductManagement() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 md:flex">
+      {/* SIDEBAR */}
+
       <aside className="bg-slate-950 p-5 text-white md:min-h-screen md:w-72 md:shrink-0">
         <div className="mb-8 flex items-center gap-3">
           <div className="rounded-xl bg-sky-400 p-2 text-slate-950">
             <ShoppingBag size={23} />
           </div>
+
           <div>
             <h1 className="font-bold">Website Admin</h1>
             <p className="text-xs text-slate-400">Content management</p>
@@ -1134,16 +1325,22 @@ export default function ProductManagement() {
           <p className="text-xs uppercase tracking-widest text-slate-400">
             Product catalog
           </p>
+
           <p className="mt-2 text-2xl font-bold">{config.products.length}</p>
           <p className="text-xs text-slate-400">Products</p>
+
           <p className="mt-3 text-2xl font-bold">{config.categories.length}</p>
           <p className="text-xs text-slate-400">Categories</p>
+
           <p className="mt-3 text-2xl font-bold">{config.videos.length}</p>
           <p className="text-xs text-slate-400">Videos</p>
+
           <p className="mt-3 text-2xl font-bold">{config.comments.length}</p>
           <p className="text-xs text-slate-400">Comments</p>
         </div>
       </aside>
+
+      {/* MAIN CONTENT */}
 
       <main className="min-w-0 flex-1 p-4 md:p-8">
         <div className="mx-auto max-w-5xl">
@@ -1152,9 +1349,11 @@ export default function ProductManagement() {
               <p className="text-sm font-medium text-sky-600">
                 WEBSITE SETTINGS
               </p>
+
               <h2 className="mt-1 text-3xl font-bold">
                 {tabs.find((tab) => tab.id === activeTab)?.label}
               </h2>
+
               <p className="mt-2 text-sm text-slate-500">
                 Manage all sections of your public Products page.
               </p>
@@ -1169,6 +1368,7 @@ export default function ProductManagement() {
                 <Eye size={17} />
                 Preview
               </button>
+
               <button
                 type="button"
                 onClick={save}
@@ -1180,6 +1380,7 @@ export default function ProductManagement() {
                 ) : (
                   <Save size={17} />
                 )}
+
                 {saving ? "Saving..." : "Save Changes"}
               </button>
             </div>
@@ -1193,6 +1394,8 @@ export default function ProductManagement() {
               {message}
             </div>
           )}
+
+          {/* HERO */}
 
           {activeTab === "hero" && (
             <section className={`${cardClass} space-y-5`}>
@@ -1208,32 +1411,38 @@ export default function ProductManagement() {
                 value={config.heroBadge}
                 onChange={(value) => updateField("heroBadge", value)}
               />
+
               <Field
                 label="Hero title"
                 value={config.heroTitle}
                 onChange={(value) => updateField("heroTitle", value)}
                 multiline
               />
+
               <Field
                 label="Hero description"
                 value={config.heroDescription}
                 onChange={(value) => updateField("heroDescription", value)}
                 multiline
               />
+
               <Field
                 label="Button text"
                 value={config.heroButton}
                 onChange={(value) => updateField("heroButton", value)}
               />
+
               <ImagePicker
                 label="Hero image"
                 value={config.heroImage}
                 onChange={(value) => updateField("heroImage", value)}
               />
+
               <label className="block space-y-2">
                 <span className="text-sm font-medium text-slate-600">
                   Hero background color
                 </span>
+
                 <div className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
                   <input
                     type="color"
@@ -1243,6 +1452,7 @@ export default function ProductManagement() {
                     }
                     className="h-11 w-14 cursor-pointer rounded-lg border-0"
                   />
+
                   <span className="text-sm text-slate-500">
                     {config.heroColor}
                   </span>
@@ -1251,14 +1461,18 @@ export default function ProductManagement() {
             </section>
           )}
 
+          {/* PAGE CONTENT */}
+
           {activeTab === "content" && (
             <section className={`${cardClass} space-y-5`}>
               <h3 className="text-lg font-bold">Page Content</h3>
+
               <Field
                 label="Page heading"
                 value={config.pageTitle}
                 onChange={(value) => updateField("pageTitle", value)}
               />
+
               <Field
                 label="Page description"
                 value={config.pageDescription}
@@ -1267,6 +1481,8 @@ export default function ProductManagement() {
               />
             </section>
           )}
+
+          {/* CATEGORIES */}
 
           {activeTab === "categories" && (
             <section className="space-y-5">
@@ -1290,6 +1506,7 @@ export default function ProductManagement() {
                   placeholder="Enter a new category name"
                   className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-sky-400"
                 />
+
                 <button
                   type="button"
                   onClick={addCategory}
@@ -1302,13 +1519,14 @@ export default function ProductManagement() {
 
               {config.categories.map((category, index) => (
                 <article
-                  key={`${category}-${index}`}
+                  key={category}
                   className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                 >
                   <div className="flex items-center gap-3">
                     <div className="rounded-xl bg-sky-100 p-3 text-sky-700">
                       <ImageIcon size={20} />
                     </div>
+
                     <div>
                       <p className="font-semibold">{category}</p>
                       <p className="text-xs text-slate-500">
@@ -1316,6 +1534,7 @@ export default function ProductManagement() {
                       </p>
                     </div>
                   </div>
+
                   <button
                     type="button"
                     onClick={() => deleteCategory(category)}
@@ -1334,6 +1553,8 @@ export default function ProductManagement() {
             </section>
           )}
 
+          {/* PRODUCTS */}
+
           {activeTab === "products" && (
             <section className="space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1343,6 +1564,7 @@ export default function ProductManagement() {
                     {config.products.length} products in your catalog.
                   </p>
                 </div>
+
                 <button
                   type="button"
                   onClick={openAddProduct}
@@ -1362,6 +1584,7 @@ export default function ProductManagement() {
                     <h3 className="text-lg font-bold">
                       {editingId === null ? "Add Product" : "Edit Product"}
                     </h3>
+
                     <button
                       type="button"
                       onClick={() => setShowProductForm(false)}
@@ -1376,28 +1599,43 @@ export default function ProductManagement() {
                       label="Product name"
                       value={productForm.name}
                       onChange={(value) =>
-                        setProductForm((old) => ({ ...old, name: value }))
+                        setProductForm((old) => ({
+                          ...old,
+                          name: value,
+                        }))
                       }
                     />
+
                     <Field
                       label="Product code"
                       value={productForm.code}
                       onChange={(value) =>
-                        setProductForm((old) => ({ ...old, code: value }))
+                        setProductForm((old) => ({
+                          ...old,
+                          code: value,
+                        }))
                       }
                     />
+
                     <Field
                       label="Price"
                       value={productForm.price}
                       onChange={(value) =>
-                        setProductForm((old) => ({ ...old, price: value }))
+                        setProductForm((old) => ({
+                          ...old,
+                          price: value,
+                        }))
                       }
                     />
+
                     <Field
                       label="Badge"
                       value={productForm.badge}
                       onChange={(value) =>
-                        setProductForm((old) => ({ ...old, badge: value }))
+                        setProductForm((old) => ({
+                          ...old,
+                          badge: value,
+                        }))
                       }
                       placeholder="New, Featured..."
                     />
@@ -1407,6 +1645,7 @@ export default function ProductManagement() {
                     <span className="text-sm font-medium text-slate-600">
                       Category
                     </span>
+
                     <select
                       value={productForm.category}
                       onChange={(event) =>
@@ -1422,6 +1661,7 @@ export default function ProductManagement() {
                           {category}
                         </option>
                       ))}
+
                       {config.categories.length === 0 && (
                         <option value="Makeup">Makeup</option>
                       )}
@@ -1432,9 +1672,13 @@ export default function ProductManagement() {
                     label="Product image"
                     value={productForm.image}
                     onChange={(value) =>
-                      setProductForm((old) => ({ ...old, image: value }))
+                      setProductForm((old) => ({
+                        ...old,
+                        image: value,
+                      }))
                     }
                   />
+
                   <Field
                     label="Description"
                     value={productForm.description}
@@ -1452,6 +1696,7 @@ export default function ProductManagement() {
                       <Check size={17} />
                       Save Product
                     </button>
+
                     <button
                       type="button"
                       onClick={() => setShowProductForm(false)}
@@ -1465,7 +1710,7 @@ export default function ProductManagement() {
 
               {config.products.map((product, index) => (
                 <article
-                  key={product._id ?? product.id ?? index}
+                  key={getItemId(product) || index}
                   className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center"
                 >
                   {product.image ? (
@@ -1479,21 +1724,26 @@ export default function ProductManagement() {
                       <ImageIcon size={25} />
                     </div>
                   )}
+
                   <div className="min-w-0 flex-1">
                     <p className="font-bold">{product.name}</p>
+
                     <p className="mt-1 text-sm text-slate-500">
                       {product.category || "Uncategorized"} ·{" "}
                       {product.code || "No code"}
                     </p>
+
                     {product.price && (
                       <p className="mt-1 text-sm font-semibold text-sky-700">
                         Price: {product.price}
                       </p>
                     )}
+
                     <p className="mt-1 text-sm text-slate-500">
                       {product.description}
                     </p>
                   </div>
+
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -1502,6 +1752,7 @@ export default function ProductManagement() {
                     >
                       <Pencil size={18} />
                     </button>
+
                     <button
                       type="button"
                       onClick={() => deleteProduct(product)}
@@ -1522,14 +1773,18 @@ export default function ProductManagement() {
             </section>
           )}
 
+          {/* COLORS AND DESIGN */}
+
           {activeTab === "design" && (
             <section className={`${cardClass} space-y-5`}>
               <h3 className="text-lg font-bold">Colors & Design</h3>
+
               <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-100 p-4">
                 <div>
                   <p className="font-medium">Hero background color</p>
                   <p className="text-sm text-slate-500">{config.heroColor}</p>
                 </div>
+
                 <input
                   type="color"
                   value={config.heroColor || "#e0f2fe"}
@@ -1539,11 +1794,13 @@ export default function ProductManagement() {
                   className="h-11 w-14 cursor-pointer"
                 />
               </div>
+
               <ImagePicker
                 label="Hero image"
                 value={config.heroImage}
                 onChange={(value) => updateField("heroImage", value)}
               />
+
               <div
                 className="rounded-2xl p-8"
                 style={{
@@ -1562,6 +1819,8 @@ export default function ProductManagement() {
             </section>
           )}
 
+          {/* VIDEOS */}
+
           {activeTab === "videos" && (
             <section className="space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1571,6 +1830,7 @@ export default function ProductManagement() {
                     Add tutorials, beauty tips, and product videos.
                   </p>
                 </div>
+
                 <button
                   type="button"
                   onClick={openAddVideo}
@@ -1590,6 +1850,7 @@ export default function ProductManagement() {
                     <h3 className="font-bold">
                       {editingVideoId === null ? "Add Video" : "Edit Video"}
                     </h3>
+
                     <button
                       type="button"
                       onClick={() => setShowVideoForm(false)}
@@ -1598,13 +1859,18 @@ export default function ProductManagement() {
                       <X size={18} />
                     </button>
                   </div>
+
                   <Field
                     label="Video title"
                     value={videoForm.title}
                     onChange={(value) =>
-                      setVideoForm((old) => ({ ...old, title: value }))
+                      setVideoForm((old) => ({
+                        ...old,
+                        title: value,
+                      }))
                     }
                   />
+
                   <Field
                     label="Video description"
                     value={videoForm.description}
@@ -1616,14 +1882,19 @@ export default function ProductManagement() {
                     }
                     multiline
                   />
+
                   <Field
                     label="Video URL"
                     value={videoForm.url}
                     onChange={(value) =>
-                      setVideoForm((old) => ({ ...old, url: value }))
+                      setVideoForm((old) => ({
+                        ...old,
+                        url: value,
+                      }))
                     }
                     placeholder="https://example.com/video.mp4"
                   />
+
                   {videoForm.url && (
                     <video
                       src={videoForm.url}
@@ -1631,6 +1902,7 @@ export default function ProductManagement() {
                       className="aspect-video w-full rounded-xl bg-black"
                     />
                   )}
+
                   <button type="submit" className={buttonClass}>
                     <Check size={17} />
                     Save Video
@@ -1640,7 +1912,7 @@ export default function ProductManagement() {
 
               {config.videos.map((video, index) => (
                 <article
-                  key={video._id ?? video.id ?? index}
+                  key={getItemId(video) || index}
                   className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 md:flex-row"
                 >
                   <video
@@ -1648,11 +1920,14 @@ export default function ProductManagement() {
                     controls
                     className="aspect-video w-full rounded-xl bg-black md:w-56"
                   />
+
                   <div className="min-w-0 flex-1">
                     <h4 className="font-bold">{video.title}</h4>
+
                     <p className="mt-2 text-sm text-slate-500">
                       {video.description}
                     </p>
+
                     <a
                       href={video.url}
                       target="_blank"
@@ -1661,6 +1936,7 @@ export default function ProductManagement() {
                     >
                       Open video <ExternalLink size={14} />
                     </a>
+
                     <div className="mt-4 flex gap-2">
                       <button
                         type="button"
@@ -1670,6 +1946,7 @@ export default function ProductManagement() {
                         <Pencil size={16} />
                         Edit
                       </button>
+
                       <button
                         type="button"
                         onClick={() => deleteVideo(video)}
@@ -1692,6 +1969,8 @@ export default function ProductManagement() {
             </section>
           )}
 
+          {/* COMMENTS */}
+
           {activeTab === "comments" && (
             <section className="space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1701,6 +1980,7 @@ export default function ProductManagement() {
                     Manage feedback, ratings, and comment visibility.
                   </p>
                 </div>
+
                 <button
                   type="button"
                   onClick={openAddComment}
@@ -1719,6 +1999,7 @@ export default function ProductManagement() {
                     updateNested("commentsSection", "title", value)
                   }
                 />
+
                 <Field
                   label="Section description"
                   value={config.commentsSection.description}
@@ -1727,6 +2008,7 @@ export default function ProductManagement() {
                   }
                   multiline
                 />
+
                 <Toggle
                   label="Show customer comments section"
                   checked={config.commentsSection.enabled}
@@ -1734,6 +2016,7 @@ export default function ProductManagement() {
                     updateNested("commentsSection", "enabled", value)
                   }
                 />
+
                 <Toggle
                   label="Show customer comment form"
                   checked={config.commentsSection.showForm}
@@ -1754,6 +2037,7 @@ export default function ProductManagement() {
                         ? "Add Customer Comment"
                         : "Edit Customer Comment"}
                     </h3>
+
                     <button
                       type="button"
                       onClick={() => setShowCommentForm(false)}
@@ -1762,25 +2046,35 @@ export default function ProductManagement() {
                       <X size={18} />
                     </button>
                   </div>
+
                   <Field
                     label="Customer name"
                     value={commentForm.name}
                     onChange={(value) =>
-                      setCommentForm((old) => ({ ...old, name: value }))
+                      setCommentForm((old) => ({
+                        ...old,
+                        name: value,
+                      }))
                     }
                   />
+
                   <Field
                     label="Comment"
                     value={commentForm.message}
                     onChange={(value) =>
-                      setCommentForm((old) => ({ ...old, message: value }))
+                      setCommentForm((old) => ({
+                        ...old,
+                        message: value,
+                      }))
                     }
                     multiline
                   />
+
                   <label className="block space-y-2">
                     <span className="text-sm font-medium text-slate-600">
                       Rating
                     </span>
+
                     <select
                       value={commentForm.rating}
                       onChange={(event) =>
@@ -1798,13 +2092,18 @@ export default function ProductManagement() {
                       ))}
                     </select>
                   </label>
+
                   <Toggle
                     label="Approved and visible"
                     checked={commentForm.approved}
                     onChange={(value) =>
-                      setCommentForm((old) => ({ ...old, approved: value }))
+                      setCommentForm((old) => ({
+                        ...old,
+                        approved: value,
+                      }))
                     }
                   />
+
                   <button type="submit" className={buttonClass}>
                     <Check size={17} />
                     Save Comment
@@ -1814,12 +2113,13 @@ export default function ProductManagement() {
 
               {config.comments.map((comment, index) => (
                 <article
-                  key={comment._id ?? comment.id ?? index}
+                  key={getItemId(comment) || index}
                   className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <h4 className="font-bold">{comment.name}</h4>
+
                       <div className="mt-2 flex gap-1 text-amber-400">
                         {Array.from({
                           length: Math.min(
@@ -1831,6 +2131,7 @@ export default function ProductManagement() {
                         ))}
                       </div>
                     </div>
+
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-semibold ${
                         comment.approved === false
@@ -1841,9 +2142,11 @@ export default function ProductManagement() {
                       {comment.approved === false ? "Hidden" : "Approved"}
                     </span>
                   </div>
+
                   <p className="mt-4 text-sm leading-7 text-slate-600">
                     {comment.message}
                   </p>
+
                   <div className="mt-4 flex flex-wrap gap-2">
                     <button
                       type="button"
@@ -1853,6 +2156,7 @@ export default function ProductManagement() {
                       <Pencil size={16} />
                       Edit
                     </button>
+
                     <button
                       type="button"
                       onClick={() => toggleCommentApproval(comment)}
@@ -1863,8 +2167,10 @@ export default function ProductManagement() {
                       ) : (
                         <EyeOff size={16} />
                       )}
+
                       {comment.approved === false ? "Approve" : "Hide"}
                     </button>
+
                     <button
                       type="button"
                       onClick={() => deleteComment(comment)}
@@ -1886,6 +2192,8 @@ export default function ProductManagement() {
             </section>
           )}
 
+          {/* SEARCH AND FILTERS */}
+
           {activeTab === "search" && (
             <section className={`${cardClass} space-y-5`}>
               <div>
@@ -1895,6 +2203,7 @@ export default function ProductManagement() {
                   Products page.
                 </p>
               </div>
+
               <Toggle
                 label="Enable search and filters section"
                 checked={config.searchSection.enabled}
@@ -1902,6 +2211,7 @@ export default function ProductManagement() {
                   updateNested("searchSection", "enabled", value)
                 }
               />
+
               <Field
                 label="Section title"
                 value={config.searchSection.title}
@@ -1909,6 +2219,7 @@ export default function ProductManagement() {
                   updateNested("searchSection", "title", value)
                 }
               />
+
               <Field
                 label="Section description"
                 value={config.searchSection.description}
@@ -1917,6 +2228,7 @@ export default function ProductManagement() {
                 }
                 multiline
               />
+
               <Toggle
                 label="Show search input"
                 checked={config.searchSection.showSearch}
@@ -1924,6 +2236,7 @@ export default function ProductManagement() {
                   updateNested("searchSection", "showSearch", value)
                 }
               />
+
               <Toggle
                 label="Show category filters"
                 checked={config.searchSection.showCategoryFilters}
@@ -1931,6 +2244,7 @@ export default function ProductManagement() {
                   updateNested("searchSection", "showCategoryFilters", value)
                 }
               />
+
               <Toggle
                 label="Show favorites filter"
                 checked={config.searchSection.showFavorites}
@@ -1938,6 +2252,7 @@ export default function ProductManagement() {
                   updateNested("searchSection", "showFavorites", value)
                 }
               />
+
               <Toggle
                 label="Show product count"
                 checked={config.searchSection.showProductCount}
@@ -1945,12 +2260,15 @@ export default function ProductManagement() {
                   updateNested("searchSection", "showProductCount", value)
                 }
               />
+
               <div className="rounded-xl bg-sky-50 p-4 text-sm text-sky-800">
                 These settings control visibility. Your public Products
                 component must read these values from the API to apply them.
               </div>
             </section>
           )}
+
+          {/* CONTACT */}
 
           {activeTab === "contact" && (
             <section className={`${cardClass} space-y-5`}>
@@ -1961,6 +2279,7 @@ export default function ProductManagement() {
                   page.
                 </p>
               </div>
+
               <Toggle
                 label="Show contact section"
                 checked={config.contactSection.enabled}
@@ -1968,6 +2287,7 @@ export default function ProductManagement() {
                   updateNested("contactSection", "enabled", value)
                 }
               />
+
               <Field
                 label="Contact title"
                 value={config.contactSection.title}
@@ -1975,6 +2295,7 @@ export default function ProductManagement() {
                   updateNested("contactSection", "title", value)
                 }
               />
+
               <Field
                 label="Contact description"
                 value={config.contactSection.description}
@@ -1983,6 +2304,7 @@ export default function ProductManagement() {
                 }
                 multiline
               />
+
               <Field
                 label="Button text"
                 value={config.contactSection.buttonText}
@@ -1990,6 +2312,7 @@ export default function ProductManagement() {
                   updateNested("contactSection", "buttonText", value)
                 }
               />
+
               <Field
                 label="Button link"
                 value={config.contactSection.buttonLink}
@@ -1998,19 +2321,24 @@ export default function ProductManagement() {
                 }
                 placeholder="/connect"
               />
+
               <div className="rounded-2xl bg-sky-50 p-6 text-center">
                 <h3 className="text-2xl font-bold">
                   {config.contactSection.title}
                 </h3>
+
                 <p className="mt-2 text-sm text-slate-600">
                   {config.contactSection.description}
                 </p>
+
                 <span className="mt-4 inline-flex rounded-full bg-sky-500 px-6 py-3 font-semibold text-white">
                   {config.contactSection.buttonText}
                 </span>
               </div>
             </section>
           )}
+
+          {/* CATEGORY DESIGN */}
 
           {activeTab === "categoryDesign" && (
             <section className="space-y-5">
@@ -2030,6 +2358,7 @@ export default function ProductManagement() {
                     updateNested("categoryDesign", "title", value)
                   }
                 />
+
                 <Field
                   label="Category section description"
                   value={config.categoryDesign.description}
@@ -2038,10 +2367,12 @@ export default function ProductManagement() {
                   }
                   multiline
                 />
+
                 <label className="block space-y-2">
                   <span className="text-sm font-medium text-slate-600">
                     Number of columns
                   </span>
+
                   <select
                     value={config.categoryDesign.columns}
                     onChange={(event) =>
@@ -2058,10 +2389,12 @@ export default function ProductManagement() {
                     <option value="4">4 columns</option>
                   </select>
                 </label>
+
                 <label className="block space-y-2">
                   <span className="text-sm font-medium text-slate-600">
                     Card style
                   </span>
+
                   <select
                     value={config.categoryDesign.cardStyle}
                     onChange={(event) =>
@@ -2081,18 +2414,19 @@ export default function ProductManagement() {
               </div>
 
               <div className="space-y-4">
-                {config.categories.map((category, index) => {
+                {config.categories.map((category) => {
                   const detail = getCategoryDetail(category);
 
                   return (
                     <article
-                      key={`${category}-${index}`}
+                      key={category}
                       className={`${cardClass} space-y-4`}
                     >
                       <div className="flex items-center gap-3">
                         <div className="rounded-xl bg-sky-100 p-3 text-sky-700">
                           <LayoutGrid size={20} />
                         </div>
+
                         <div>
                           <h4 className="font-bold">{category}</h4>
                           <p className="text-xs text-slate-500">
@@ -2100,6 +2434,7 @@ export default function ProductManagement() {
                           </p>
                         </div>
                       </div>
+
                       <Field
                         label="Category subtitle"
                         value={detail.subtitle}
@@ -2108,6 +2443,7 @@ export default function ProductManagement() {
                         }
                         placeholder="Example: Discover our skincare collection"
                       />
+
                       <ImagePicker
                         label={`${category} image`}
                         value={detail.image}
@@ -2128,6 +2464,8 @@ export default function ProductManagement() {
             </section>
           )}
 
+          {/* BOTTOM ACTIONS */}
+
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
             <button
               type="button"
@@ -2138,6 +2476,7 @@ export default function ProductManagement() {
               <RotateCcw size={16} />
               Reset Settings
             </button>
+
             <button
               type="button"
               onClick={save}
@@ -2149,16 +2488,17 @@ export default function ProductManagement() {
               ) : (
                 <Save size={18} />
               )}
+
               {saving ? "Saving..." : "Save Changes"}
             </button>
           </div>
 
           <p className="mt-4 text-xs leading-5 text-slate-500">
             Settings are sent to your existing productsection API. Your backend
-            schema must support the new fields (videos, comments,
-            categoryDetails, searchSection, contactSection, commentsSection, and
-            categoryDesign) for them to be stored permanently. Your public
-            Products page must also read these fields to display the changes.
+            schema must support videos, comments, categoryDetails,
+            searchSection, contactSection, commentsSection, and categoryDesign
+            for them to be stored permanently. Your public Products page must
+            also read these fields to display the changes.
           </p>
         </div>
       </main>

@@ -20,6 +20,13 @@ const allowedFields = [
   "contactSection",
 ];
 
+const validateArray = (value, fieldName) => {
+  if (value !== undefined && !Array.isArray(value)) {
+    return `${fieldName} must be an array.`;
+  }
+  return null;
+};
+
 router.get("/", async (req, res) => {
   try {
     let section = await ProductSection.findOne();
@@ -28,10 +35,13 @@ router.get("/", async (req, res) => {
       section = await ProductSection.create({});
     }
 
-    res.status(200).json(section);
+    return res.status(200).json(section);
   } catch (error) {
-    res.status(500).json({
-      message: "Failed to load product page settings",
+    console.error("Product section GET error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load product page settings.",
       error: error.message,
     });
   }
@@ -39,64 +49,74 @@ router.get("/", async (req, res) => {
 
 router.put("/", async (req, res) => {
   try {
+    if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid request body.",
+      });
+    }
+
     const updates = {};
 
     for (const field of allowedFields) {
-      if (req.body[field] !== undefined) {
+      if (Object.prototype.hasOwnProperty.call(req.body, field)) {
         updates[field] = req.body[field];
       }
     }
 
-    if (
-      updates.categories !== undefined &&
-      (!Array.isArray(updates.categories) ||
-        !updates.categories.every((item) => typeof item === "string"))
-    ) {
-      return res.status(400).json({
-        message: "Categories must be an array of strings.",
-      });
+    if (updates.categories !== undefined) {
+      if (
+        !Array.isArray(updates.categories) ||
+        !updates.categories.every((item) => typeof item === "string")
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Categories must be an array of strings.",
+        });
+      }
     }
 
-    if (updates.products !== undefined && !Array.isArray(updates.products)) {
-      return res.status(400).json({
-        message: "Products must be an array.",
-      });
-    }
+    const arrayFields = [
+      ["products", "Products"],
+      ["videos", "Videos"],
+      ["comments", "Comments"],
+      ["categoryDetails", "Category details"],
+    ];
 
-    if (updates.videos !== undefined && !Array.isArray(updates.videos)) {
-      return res.status(400).json({
-        message: "Videos must be an array.",
-      });
-    }
+    for (const [field, label] of arrayFields) {
+      const error = validateArray(updates[field], label);
 
-    if (updates.comments !== undefined && !Array.isArray(updates.comments)) {
-      return res.status(400).json({
-        message: "Comments must be an array.",
-      });
-    }
-
-    if (
-      updates.categoryDetails !== undefined &&
-      !Array.isArray(updates.categoryDetails)
-    ) {
-      return res.status(400).json({
-        message: "Category details must be an array.",
-      });
+      if (error) {
+        return res.status(400).json({
+          success: false,
+          message: error,
+        });
+      }
     }
 
     let section = await ProductSection.findOne();
 
     if (!section) {
-      section = await ProductSection.create(updates);
+      section = new ProductSection(updates);
     } else {
       Object.assign(section, updates);
-      await section.save();
     }
 
-    res.status(200).json(section);
+    await section.save();
+
+    const savedSection = await ProductSection.findById(section._id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Product page settings saved successfully.",
+      data: savedSection,
+    });
   } catch (error) {
-    res.status(500).json({
-      message: "Failed to save product page settings",
+    console.error("Product section PUT error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save product page settings.",
       error: error.message,
     });
   }
