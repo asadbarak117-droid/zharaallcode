@@ -9,10 +9,18 @@ const AccountingTable = require("../moduls/AccountingTable");
 
 const validCurrency = (currency) => ["AFN", "USD", "PLN"].includes(currency);
 
-const validDate = (date) =>
-  typeof date === "string" &&
-  /^\d{4}-\d{2}-\d{2}$/.test(date) &&
-  !Number.isNaN(Date.parse(`${date}T00:00:00Z`));
+const validDate = (date) => {
+  if (typeof date !== "string") return false;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+
+  return (
+    !Number.isNaN(parsed.getTime()) &&
+    parsed.toISOString().slice(0, 10) === date
+  );
+};
 
 const validId = (id) =>
   typeof id === "string" && id.length > 0 && id.length <= 150;
@@ -47,16 +55,37 @@ function validateQuantities(purchased, sold) {
   return Number(sold || 0) <= Number(purchased || 0);
 }
 
+function validateDiscount(discountType, discountValue) {
+  if (!["amount", "percent"].includes(discountType)) {
+    return "Invalid discount type.";
+  }
+
+  if (discountType === "percent" && Number(discountValue || 0) > 100) {
+    return "Discount percentage cannot exceed 100.";
+  }
+
+  return null;
+}
+
+function sendError(res, error, status = 500) {
+  return res.status(status).json({
+    message: error.message || "Something went wrong.",
+  });
+}
+
 // GET ALL TABLES
 router.get("/tables", async (req, res) => {
   try {
     const currency = req.query.currency || "AFN";
+
     const term = String(req.query.search || "")
       .trim()
       .toLowerCase();
 
     if (!validCurrency(currency)) {
-      return res.status(400).json({ message: "Invalid currency." });
+      return res.status(400).json({
+        message: "Invalid currency.",
+      });
     }
 
     const savedTables = await AccountingTable.find({ currency })
@@ -82,8 +111,10 @@ router.get("/tables", async (req, res) => {
       if (!term) return true;
 
       return (
-        table.tableName.toLowerCase().includes(term) ||
-        table.date.includes(term) ||
+        String(table.tableName || "")
+          .toLowerCase()
+          .includes(term) ||
+        String(table.date || "").includes(term) ||
         table.rows.some((row) =>
           String(row.productName || "")
             .toLowerCase()
@@ -92,12 +123,12 @@ router.get("/tables", async (req, res) => {
       );
     });
 
-    // Include old records whose table documents do not yet exist.
     const oldRecords = await Accounting.find({ currency })
       .sort({ date: -1, createdAt: -1 })
       .lean();
 
     const knownIds = new Set(savedTables.map((table) => table.tableId));
+
     const legacyGroups = new Map();
 
     for (const row of oldRecords) {
@@ -117,6 +148,7 @@ router.get("/tables", async (req, res) => {
       }
 
       const group = legacyGroups.get(id);
+
       group.rows.push(row);
 
       if (row.date && row.date > group.date) {
@@ -128,8 +160,10 @@ router.get("/tables", async (req, res) => {
       if (!term) return true;
 
       return (
-        table.tableName.toLowerCase().includes(term) ||
-        table.date.includes(term) ||
+        String(table.tableName || "")
+          .toLowerCase()
+          .includes(term) ||
+        String(table.date || "").includes(term) ||
         table.rows.some((row) =>
           String(row.productName || "")
             .toLowerCase()
@@ -138,15 +172,15 @@ router.get("/tables", async (req, res) => {
       );
     });
 
-    res.json({
+    return res.json({
       tables: [...filteredTables, ...legacyTables],
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendError(res, error);
   }
 });
 
-// CREATE AND SAVE TABLE
+// CREATE TABLE
 router.post("/tables", async (req, res) => {
   try {
     const tableName = String(req.body.tableName || "").trim();
@@ -178,8 +212,9 @@ router.post("/tables", async (req, res) => {
       currency,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       table: {
+        _id: table._id,
         tableId: table.tableId,
         tableName: table.tableName,
         date: table.date,
@@ -188,37 +223,45 @@ router.post("/tables", async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendError(res, error);
   }
 });
 
-// GET ONE TABLE AND ITS ROWS
+// GET ONE TABLE
 router.get("/tables/:tableId", async (req, res) => {
   try {
     const tableId = req.params.tableId;
 
     if (!validId(tableId)) {
-      return res.status(400).json({ message: "Invalid table ID." });
+      return res.status(400).json({
+        message: "Invalid table ID.",
+      });
     }
 
-    const table = await AccountingTable.findOne({ tableId }).lean();
+    const table = await AccountingTable.findOne({
+      tableId,
+    }).lean();
 
     const rows = await Accounting.find({ tableId })
       .sort({ createdAt: 1 })
       .lean();
 
-    // Also allow existing legacy table IDs.
     if (!table && rows.length === 0) {
-      return res.status(404).json({ message: "Table not found." });
+      return res.status(404).json({
+        message: "Table not found.",
+      });
     }
 
-    res.json({ table: table || null, rows });
+    return res.json({
+      table: table || null,
+      rows,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendError(res, error);
   }
 });
 
-// UPDATE TABLE NAME, DATE, OR CURRENCY
+// UPDATE TABLE
 router.put("/tables/:tableId", async (req, res) => {
   try {
     const tableId = req.params.tableId;
@@ -226,7 +269,9 @@ router.put("/tables/:tableId", async (req, res) => {
     const table = await AccountingTable.findOne({ tableId });
 
     if (!table) {
-      return res.status(404).json({ message: "Table not found." });
+      return res.status(404).json({
+        message: "Table not found.",
+      });
     }
 
     if (req.body.tableName !== undefined) {
@@ -272,18 +317,22 @@ router.put("/tables/:tableId", async (req, res) => {
           currency: table.currency,
         },
       },
+      { runValidators: true },
     );
 
-    res.json({ table });
+    return res.json({
+      table,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendError(res, error);
   }
 });
 
 // CREATE ACCOUNTING ROW
 router.post("/", async (req, res) => {
   try {
-    const tableId = String(req.body.tableId || "");
+    const tableId = String(req.body.tableId || "").trim();
+
     const productName = String(req.body.productName || "").trim();
 
     if (!tableId || !productName) {
@@ -295,10 +344,14 @@ router.post("/", async (req, res) => {
     const errorMessage = validateNumbers(req.body);
 
     if (errorMessage) {
-      return res.status(400).json({ message: errorMessage });
+      return res.status(400).json({
+        message: errorMessage,
+      });
     }
 
-    const table = await AccountingTable.findOne({ tableId });
+    const table = await AccountingTable.findOne({
+      tableId,
+    });
 
     if (!table) {
       return res.status(404).json({
@@ -315,6 +368,7 @@ router.post("/", async (req, res) => {
     }
 
     const purchased = Number(req.body.quantityPurchased || 0);
+
     const sold = Number(req.body.quantitySold || 0);
 
     if (!validateQuantities(purchased, sold)) {
@@ -325,9 +379,13 @@ router.post("/", async (req, res) => {
 
     const discountType = req.body.discountType || "amount";
 
-    if (!["amount", "percent"].includes(discountType)) {
+    const discountValue = Number(req.body.discountValue || 0);
+
+    const discountError = validateDiscount(discountType, discountValue);
+
+    if (discountError) {
       return res.status(400).json({
-        message: "Invalid discount type.",
+        message: discountError,
       });
     }
 
@@ -343,14 +401,16 @@ router.post("/", async (req, res) => {
       shippingCost: Number(req.body.shippingCost || 0),
       otherCosts: Number(req.body.otherCosts || 0),
       discountType,
-      discountValue: Number(req.body.discountValue || 0),
+      discountValue,
       currency,
       notes: String(req.body.notes || ""),
     });
 
-    res.status(201).json({ row });
+    return res.status(201).json({
+      row,
+    });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    return sendError(res, error, 400);
   }
 });
 
@@ -358,19 +418,25 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({ message: "Invalid record ID." });
+      return res.status(400).json({
+        message: "Invalid record ID.",
+      });
     }
 
     const row = await Accounting.findById(req.params.id);
 
     if (!row) {
-      return res.status(404).json({ message: "Record not found." });
+      return res.status(404).json({
+        message: "Record not found.",
+      });
     }
 
     const errorMessage = validateNumbers(req.body);
 
     if (errorMessage) {
-      return res.status(400).json({ message: errorMessage });
+      return res.status(400).json({
+        message: errorMessage,
+      });
     }
 
     const allowed = [
@@ -388,12 +454,15 @@ router.put("/:id", async (req, res) => {
 
     for (const field of allowed) {
       if (req.body[field] !== undefined) {
-        row[field] =
-          field === "productName"
-            ? String(req.body[field]).trim()
-            : field === "notes"
-              ? String(req.body[field])
-              : req.body[field];
+        if (field === "productName") {
+          row[field] = String(req.body[field]).trim();
+        } else if (field === "notes") {
+          row[field] = String(req.body[field]);
+        } else if (numericFields.includes(field)) {
+          row[field] = Number(req.body[field]);
+        } else {
+          row[field] = req.body[field];
+        }
       }
     }
 
@@ -403,9 +472,11 @@ router.put("/:id", async (req, res) => {
       });
     }
 
-    if (row.discountType && !["amount", "percent"].includes(row.discountType)) {
+    const discountError = validateDiscount(row.discountType, row.discountValue);
+
+    if (discountError) {
       return res.status(400).json({
-        message: "Invalid discount type.",
+        message: discountError,
       });
     }
 
@@ -417,51 +488,72 @@ router.put("/:id", async (req, res) => {
 
     await row.save();
 
-    res.json({ row });
+    return res.json({
+      row,
+    });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    return sendError(res, error, 400);
   }
 });
 
-// DELETE ONE ACCOUNTING ROW
+// DELETE ACCOUNTING ROW
 router.delete("/:id", async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({ message: "Invalid record ID." });
+      return res.status(400).json({
+        message: "Invalid record ID.",
+      });
     }
 
     const row = await Accounting.findByIdAndDelete(req.params.id);
 
     if (!row) {
-      return res.status(404).json({ message: "Record not found." });
+      return res.status(404).json({
+        message: "Record not found.",
+      });
     }
 
-    res.json({ message: "Record deleted." });
+    return res.json({
+      message: "Record deleted.",
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendError(res, error);
   }
 });
 
-// DELETE A TABLE AND ITS ROWS ONLY WHEN EXPLICITLY REQUESTED
+// DELETE TABLE AND ALL ITS ROWS
 router.delete("/tables/:tableId", async (req, res) => {
   try {
     const tableId = req.params.tableId;
 
-    const table = await AccountingTable.findOne({ tableId });
-
-    if (!table) {
-      return res.status(404).json({ message: "Table not found." });
+    if (!validId(tableId)) {
+      return res.status(400).json({
+        message: "Invalid table ID.",
+      });
     }
 
-    const result = await Accounting.deleteMany({ tableId });
+    const table = await AccountingTable.findOne({
+      tableId,
+    });
+
+    if (!table) {
+      return res.status(404).json({
+        message: "Table not found.",
+      });
+    }
+
+    const result = await Accounting.deleteMany({
+      tableId,
+    });
+
     await table.deleteOne();
 
-    res.json({
+    return res.json({
       message: "Table and its rows deleted.",
       deletedCount: result.deletedCount,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendError(res, error);
   }
 });
 

@@ -37,15 +37,11 @@ const money = (value, currency) =>
   }).format(Number(value) || 0)} ${currency}`;
 
 const productId = (p) => p?._id || p?.id || p?.productId || "";
-
 const productName = (p) =>
   p?.name || p?.title || p?.productName || "Unnamed product";
-
 const sellingPrice = (p) => Number(p?.price ?? p?.sellingPrice ?? 0);
-
 const purchasePrice = (p) =>
   Number(p?.purchasePrice ?? p?.buyPrice ?? p?.costPrice ?? 0);
-
 const productImage = (p) => p?.image || p?.imageUrl || p?.photo || "";
 
 function getProductArray(data) {
@@ -54,6 +50,24 @@ function getProductArray(data) {
   if (Array.isArray(data?.product)) return data.product;
   if (Array.isArray(data?.data)) return data.data;
   return [];
+}
+
+async function apiRequest(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.message || data.error || `HTTP ${response.status}`);
+  }
+
+  return data;
 }
 
 const navigation = [
@@ -70,6 +84,7 @@ function Field({ label, value, onChange, type = "text", min }) {
       <input
         type={type}
         min={min}
+        step={type === "number" ? "any" : undefined}
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
@@ -123,6 +138,8 @@ function SummaryLine({ label, value, strong = false, color = "" }) {
   );
 }
 
+/* ACCOUNTING */
+
 function AccountingSection({ currency, setCurrency }) {
   const [tables, setTables] = useState([]);
   const [selectedId, setSelectedId] = useState("");
@@ -130,40 +147,32 @@ function AccountingSection({ currency, setCurrency }) {
   const [tableName, setTableName] = useState("");
   const [tableDate, setTableDate] = useState(today());
   const [search, setSearch] = useState("");
-
   const [loadingTables, setLoadingTables] = useState(false);
   const [loadingRows, setLoadingRows] = useState(false);
-
   const [savingId, setSavingId] = useState("");
+  const [deletingId, setDeletingId] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-
   const rowsRequestRef = useRef(0);
 
   const selectedTable = tables.find((table) => table.tableId === selectedId);
 
-  const request = async (url, options = {}) => {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...(options.headers || {}),
-      },
-    });
+  const normalizeTable = (table) => ({
+    ...table,
+    tableId: String(table.tableId || table._id || table.id || ""),
+    tableName: table.tableName || table.name || "Untitled table",
+    date: table.date || "",
+  });
 
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(data.message || data.error || "Request failed.");
-    }
-
-    return data;
-  };
+  const normalizeRow = (row) => ({
+    ...row,
+    _id: String(row._id || row.id || ""),
+  });
 
   const blankRow = () => ({
     _id: `new-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     tableId: selectedId,
-    tableName: selectedTable?.tableName || tableName,
+    tableName: selectedTable?.tableName || "",
     date: selectedTable?.date || tableDate || today(),
     productName: "",
     quantityPurchased: 0,
@@ -184,32 +193,29 @@ function AccountingSection({ currency, setCurrency }) {
 
     try {
       const params = new URLSearchParams({ currency, search });
+      const data = await apiRequest(`${API_ACCOUNTING}/tables?${params}`);
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data.tables)
+          ? data.tables
+          : Array.isArray(data.data)
+            ? data.data
+            : [];
 
-      const data = await request(
-        `${API_ACCOUNTING}/tables?${params.toString()}`,
+      const normalized = list.map(normalizeTable).filter((t) => t.tableId);
+      setTables(normalized);
+
+      setSelectedId((oldId) =>
+        oldId && normalized.some((table) => table.tableId === oldId)
+          ? oldId
+          : "",
       );
-
-      const receivedTables = Array.isArray(data.tables) ? data.tables : [];
-
-      setTables(receivedTables);
-
-      setSelectedId((oldId) => {
-        if (receivedTables.some((table) => table.tableId === oldId)) {
-          return oldId;
-        }
-
-        return "";
-      });
     } catch (err) {
-      setError(err.message);
+      setError(`Could not load tables: ${err.message}`);
     } finally {
       setLoadingTables(false);
     }
   }, [currency, search]);
-
-  useEffect(() => {
-    loadTables();
-  }, [loadTables]);
 
   const loadRows = useCallback(async () => {
     const requestId = ++rowsRequestRef.current;
@@ -224,27 +230,37 @@ function AccountingSection({ currency, setCurrency }) {
     setError("");
 
     try {
-      const data = await request(
+      const data = await apiRequest(
         `${API_ACCOUNTING}/tables/${encodeURIComponent(selectedId)}`,
       );
 
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data.rows)
+          ? data.rows
+          : Array.isArray(data.data)
+            ? data.data
+            : [];
+
       if (requestId === rowsRequestRef.current) {
-        setRows(Array.isArray(data.rows) ? data.rows : []);
+        setRows(list.map(normalizeRow));
       }
     } catch (err) {
       if (requestId === rowsRequestRef.current) {
-        setError(err.message);
+        setError(`Could not load rows: ${err.message}`);
+        setRows([]);
       }
     } finally {
-      if (requestId === rowsRequestRef.current) {
-        setLoadingRows(false);
-      }
+      if (requestId === rowsRequestRef.current) setLoadingRows(false);
     }
   }, [selectedId]);
 
   useEffect(() => {
-    loadRows();
+    loadTables();
+  }, [loadTables]);
 
+  useEffect(() => {
+    loadRows();
     return () => {
       rowsRequestRef.current += 1;
     };
@@ -265,7 +281,7 @@ function AccountingSection({ currency, setCurrency }) {
     setMessage("");
 
     try {
-      const data = await request(`${API_ACCOUNTING}/tables`, {
+      const data = await apiRequest(`${API_ACCOUNTING}/tables`, {
         method: "POST",
         body: JSON.stringify({
           tableName: tableName.trim(),
@@ -274,29 +290,30 @@ function AccountingSection({ currency, setCurrency }) {
         }),
       });
 
-      const table = data.table;
+      const rawTable = data.table || data.data || data;
+      const table = normalizeTable(rawTable);
 
-      if (!table?.tableId) {
-        throw new Error("The server did not return a valid table.");
+      if (!table.tableId) {
+        throw new Error("The server did not return a table ID.");
       }
 
       setTables((old) => [
-        { ...table, rows: [] },
+        table,
         ...old.filter((item) => item.tableId !== table.tableId),
       ]);
 
-      setRows([]);
       setSelectedId(table.tableId);
+      setRows([]);
       setTableName("");
-      setMessage(`Table "${table.tableName}" created.`);
+      setMessage(`Table "${table.tableName}" created successfully.`);
     } catch (err) {
-      setError(err.message);
+      setError(`Could not create table: ${err.message}`);
     }
   };
 
   const addRow = () => {
     if (!selectedId) {
-      setError("Please select a table first.");
+      setError("Select a table before adding a row.");
       return;
     }
 
@@ -307,10 +324,7 @@ function AccountingSection({ currency, setCurrency }) {
 
     setError("");
     setMessage("");
-
-    const newRow = blankRow();
-
-    setRows((previousRows) => [newRow, ...previousRows]);
+    setRows((old) => [blankRow(), ...old]);
   };
 
   const updateCell = (id, field, value) => {
@@ -326,7 +340,6 @@ function AccountingSection({ currency, setCurrency }) {
     const sell = Number(row.sellingPrice) || 0;
     const shipping = Number(row.shippingCost) || 0;
     const other = Number(row.otherCosts) || 0;
-
     const gross = sold * sell;
 
     const rawDiscount =
@@ -355,14 +368,12 @@ function AccountingSection({ currency, setCurrency }) {
       rows.reduce(
         (sum, row) => {
           const result = calculate(row);
-
           sum.investment += result.investment;
           sum.revenue += result.revenue;
           sum.costs += result.costs;
           sum.profit += result.profit;
           sum.remaining += result.remaining;
           sum.stockValue += result.stockValue;
-
           return sum;
         },
         {
@@ -377,48 +388,27 @@ function AccountingSection({ currency, setCurrency }) {
     [rows],
   );
 
-  const allTotals = useMemo(
-    () =>
-      tables.reduce(
-        (sum, table) => {
-          for (const row of table.rows || []) {
-            const result = calculate(row);
-
-            sum.investment += result.investment;
-            sum.revenue += result.revenue;
-            sum.costs += result.costs;
-            sum.profit += result.profit;
-            sum.remaining += result.remaining;
-          }
-
-          return sum;
-        },
-        {
-          investment: 0,
-          revenue: 0,
-          costs: 0,
-          profit: 0,
-          remaining: 0,
-        },
-      ),
-    [tables],
-  );
-
   const saveRow = async (row) => {
     if (!selectedId) {
       setError("Select a table first.");
       return;
     }
 
-    if (!row.date || !row.productName.trim()) {
+    if (!row.date || !String(row.productName || "").trim()) {
       setError("Date and product name are required.");
       return;
     }
 
-    const purchased = Number(row.quantityPurchased) || 0;
-    const sold = Number(row.quantitySold) || 0;
+    const purchased = Number(row.quantityPurchased);
+    const sold = Number(row.quantitySold);
 
-    if (purchased < 0 || sold < 0 || sold > purchased) {
+    if (
+      !Number.isFinite(purchased) ||
+      !Number.isFinite(sold) ||
+      purchased < 0 ||
+      sold < 0 ||
+      sold > purchased
+    ) {
       setError(
         "Quantities must be valid; sold quantity cannot exceed bought quantity.",
       );
@@ -433,14 +423,12 @@ function AccountingSection({ currency, setCurrency }) {
       "discountValue",
     ];
 
-    if (
-      numericFields.some(
-        (field) =>
-          !Number.isFinite(Number(row[field])) || Number(row[field]) < 0,
-      )
-    ) {
-      setError("Prices, costs, and discount must be non-negative.");
-      return;
+    for (const field of numericFields) {
+      const value = Number(row[field]);
+      if (!Number.isFinite(value) || value < 0) {
+        setError("Prices, costs, and discount must be non-negative numbers.");
+        return;
+      }
     }
 
     if (row.discountType === "percent" && Number(row.discountValue) > 100) {
@@ -448,15 +436,14 @@ function AccountingSection({ currency, setCurrency }) {
       return;
     }
 
-    setSavingId(row._id);
-    setError("");
-    setMessage("");
+    const isNew = String(row._id).startsWith("new-");
+    const rowId = row._id;
 
     const payload = {
       tableId: selectedId,
       tableName: selectedTable?.tableName || row.tableName || "",
       date: row.date,
-      productName: row.productName.trim(),
+      productName: String(row.productName).trim(),
       quantityPurchased: purchased,
       quantitySold: sold,
       purchasePrice: Number(row.purchasePrice) || 0,
@@ -469,31 +456,38 @@ function AccountingSection({ currency, setCurrency }) {
       notes: row.notes || "",
     };
 
-    const isNew = String(row._id).startsWith("new-");
+    setSavingId(rowId);
+    setError("");
+    setMessage("");
 
     try {
-      const savedData = await request(
-        isNew ? API_ACCOUNTING : `${API_ACCOUNTING}/${row._id}`,
+      const result = await apiRequest(
+        isNew
+          ? API_ACCOUNTING
+          : `${API_ACCOUNTING}/${encodeURIComponent(rowId)}`,
         {
           method: isNew ? "POST" : "PUT",
           body: JSON.stringify(payload),
         },
       );
 
-      const savedRow = savedData.row;
+      const returnedRow = result.row || result.data?.row || result.data;
 
-      if (savedRow) {
+      if (returnedRow && (returnedRow._id || returnedRow.id)) {
+        const normalized = normalizeRow(returnedRow);
         setRows((old) =>
-          old.map((item) => (item._id === row._id ? savedRow : item)),
+          old.map((item) => (item._id === rowId ? normalized : item)),
         );
       }
 
-      setMessage("Record saved successfully.");
+      setMessage(
+        isNew ? "Record saved successfully." : "Record updated successfully.",
+      );
 
       await loadRows();
       await loadTables();
     } catch (err) {
-      setError(err.message);
+      setError(`Could not save record: ${err.message}`);
     } finally {
       setSavingId("");
     }
@@ -507,17 +501,22 @@ function AccountingSection({ currency, setCurrency }) {
 
     if (!window.confirm("Delete this product row?")) return;
 
+    setDeletingId(row._id);
+    setError("");
+
     try {
-      await request(`${API_ACCOUNTING}/${row._id}`, {
+      await apiRequest(`${API_ACCOUNTING}/${encodeURIComponent(row._id)}`, {
         method: "DELETE",
       });
 
-      setMessage("Product row deleted.");
-
+      setRows((old) => old.filter((item) => item._id !== row._id));
+      setMessage("Product row deleted successfully.");
       await loadRows();
       await loadTables();
     } catch (err) {
-      setError(err.message);
+      setError(`Could not delete row: ${err.message}`);
+    } finally {
+      setDeletingId("");
     }
   };
 
@@ -528,23 +527,23 @@ function AccountingSection({ currency, setCurrency }) {
       !window.confirm(
         `Delete "${selectedTable.tableName}" and all its saved rows? This cannot be undone.`,
       )
-    ) {
+    )
       return;
-    }
+
+    setError("");
 
     try {
-      await request(
+      await apiRequest(
         `${API_ACCOUNTING}/tables/${encodeURIComponent(selectedId)}`,
         { method: "DELETE" },
       );
 
-      setSelectedId("");
       setRows([]);
-      setMessage("Table deleted.");
-
+      setSelectedId("");
+      setMessage("Table deleted successfully.");
       await loadTables();
     } catch (err) {
-      setError(err.message);
+      setError(`Could not delete table: ${err.message}`);
     }
   };
 
@@ -561,7 +560,6 @@ function AccountingSection({ currency, setCurrency }) {
     <section className="space-y-5">
       <div className="rounded-2xl border border-slate-700 bg-[#101312] p-5 text-white shadow-xl">
         <h3 className="text-xl font-bold text-green-400">Accounting Tables</h3>
-
         <p className="mt-1 text-sm text-slate-400">
           Create separate named tables. Each table stores its own products.
         </p>
@@ -573,14 +571,12 @@ function AccountingSection({ currency, setCurrency }) {
             placeholder="Table name, e.g. October Stock"
             className="min-w-0 rounded-lg border border-slate-600 bg-[#191e1b] px-3 py-3 text-white"
           />
-
           <input
             type="date"
             value={tableDate}
             onChange={(e) => setTableDate(e.target.value)}
             className="rounded-lg border border-slate-600 bg-[#191e1b] px-3 py-3 text-white"
           />
-
           <button
             type="button"
             onClick={createTable}
@@ -596,7 +592,6 @@ function AccountingSection({ currency, setCurrency }) {
               size={17}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
             />
-
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -604,7 +599,6 @@ function AccountingSection({ currency, setCurrency }) {
               className="w-full rounded-lg border border-slate-600 bg-[#191e1b] py-3 pl-10 pr-3 text-white"
             />
           </div>
-
           <select
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
@@ -616,10 +610,12 @@ function AccountingSection({ currency, setCurrency }) {
               </option>
             ))}
           </select>
-
           <button
             type="button"
-            onClick={loadTables}
+            onClick={() => {
+              loadTables();
+              if (selectedId) loadRows();
+            }}
             className="flex items-center justify-center gap-2 rounded-lg border border-slate-600 px-4 py-3 hover:bg-slate-800"
           >
             <RefreshCw size={16} /> Refresh
@@ -648,17 +644,17 @@ function AccountingSection({ currency, setCurrency }) {
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         {[
-          ["Investment", allTotals.investment],
-          ["Revenue", allTotals.revenue],
-          ["Costs", allTotals.costs],
-          ["Profit / loss", allTotals.profit],
-          ["Stock remaining", allTotals.remaining],
+          ["Investment", totals.investment],
+          ["Revenue", totals.revenue],
+          ["Costs", totals.costs],
+          ["Profit / loss", totals.profit],
+          ["Stock remaining", totals.remaining],
         ].map(([label, value]) => (
           <div
             key={label}
             className="rounded-xl border border-slate-700 bg-[#191e1b] p-4 text-white"
           >
-            <p className="text-xs text-slate-400">{label} · All tables</p>
+            <p className="text-xs text-slate-400">{label} · Selected table</p>
             <p className="mt-2 break-words font-bold text-green-300">
               {label === "Stock remaining" ? value : money(value, currency)}
             </p>
@@ -701,7 +697,7 @@ function AccountingSection({ currency, setCurrency }) {
                 <p className="font-semibold">{table.tableName}</p>
                 <p className="mt-1 text-xs text-slate-400">{table.date}</p>
                 <p className="mt-1 text-xs text-green-300">
-                  {table.rows?.length || 0} saved rows
+                  {table.rowCount ?? table.rows?.length ?? "—"} saved rows
                 </p>
               </button>
             ))}
@@ -724,18 +720,15 @@ function AccountingSection({ currency, setCurrency }) {
                     {selectedTable?.date} · {rows.length} rows
                   </p>
                 </div>
-
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={addRow}
                     disabled={loadingRows}
-                    className="flex items-center gap-2 rounded-lg bg-green-600 px-3 py-2 font-semibold hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex items-center gap-2 rounded-lg bg-green-600 px-3 py-2 font-semibold hover:bg-green-500 disabled:opacity-50"
                   >
-                    <Plus size={16} />
-                    {loadingRows ? "Loading..." : "Add Row"}
+                    <Plus size={16} /> {loadingRows ? "Loading..." : "Add Row"}
                   </button>
-
                   <button
                     type="button"
                     onClick={deleteTable}
@@ -784,10 +777,8 @@ function AccountingSection({ currency, setCurrency }) {
                   rows.map((row, index) => {
                     const result = calculate(row);
                     const isNew = String(row._id).startsWith("new-");
-
                     const inputClass =
                       "w-full rounded-lg border border-slate-700 bg-[#101312] px-3 py-2.5 text-sm text-white outline-none focus:border-green-500 focus:ring-2 focus:ring-green-900";
-
                     const labelClass =
                       "mb-1.5 block text-xs font-medium text-slate-400";
 
@@ -823,17 +814,18 @@ function AccountingSection({ currency, setCurrency }) {
                               </h5>
                               <p className="text-xs text-slate-400">
                                 {isNew ? "Not saved yet" : "Saved record"} ·{" "}
-                                {row.date || selectedTable?.date || ""}
+                                {row.date || ""}
                               </p>
                             </div>
                           </div>
-
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
                               onClick={() => saveRow(row)}
-                              disabled={savingId === row._id}
-                              className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50"
+                              disabled={
+                                savingId === row._id || deletingId === row._id
+                              }
+                              className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500 disabled:opacity-50"
                             >
                               <Save size={16} />
                               {savingId === row._id
@@ -842,12 +834,12 @@ function AccountingSection({ currency, setCurrency }) {
                                   ? "Save Record"
                                   : "Save Changes"}
                             </button>
-
                             <button
                               type="button"
                               onClick={() => deleteRow(row)}
+                              disabled={deletingId === row._id}
                               title="Delete record"
-                              className="rounded-lg border border-red-900 bg-red-950 p-2 text-red-300 hover:bg-red-900"
+                              className="rounded-lg border border-red-900 bg-red-950 p-2 text-red-300 hover:bg-red-900 disabled:opacity-50"
                             >
                               <Trash2 size={16} />
                             </button>
@@ -913,7 +905,6 @@ function AccountingSection({ currency, setCurrency }) {
                             <h6 className="mb-3 text-xs font-bold uppercase tracking-wider text-green-300">
                               Discount and notes
                             </h6>
-
                             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                               <label className="block min-w-0">
                                 <span className={labelClass}>
@@ -934,7 +925,6 @@ function AccountingSection({ currency, setCurrency }) {
                                   <option value="percent">Percentage</option>
                                 </select>
                               </label>
-
                               <label className="block min-w-0">
                                 <span className={labelClass}>
                                   Discount{" "}
@@ -961,7 +951,6 @@ function AccountingSection({ currency, setCurrency }) {
                                   className={inputClass}
                                 />
                               </label>
-
                               <label className="block min-w-0 sm:col-span-2 xl:col-span-1">
                                 <span className={labelClass}>Notes</span>
                                 <input
@@ -980,7 +969,6 @@ function AccountingSection({ currency, setCurrency }) {
                             <h6 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
                               Calculated results
                             </h6>
-
                             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
                               {[
                                 ["Revenue", result.revenue, "text-green-300"],
@@ -1035,6 +1023,8 @@ function AccountingSection({ currency, setCurrency }) {
   );
 }
 
+/* MAIN DATABASE FRONT */
+
 export default function DatabaseFront() {
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
@@ -1064,27 +1054,8 @@ export default function DatabaseFront() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  const apiRequest = useCallback(async (url, options = {}) => {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...(options.headers || {}),
-      },
-    });
-
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(data.message || data.error || `HTTP ${response.status}`);
-    }
-
-    return data;
-  }, []);
-
   const loadProducts = useCallback(async () => {
     setLoadingProducts(true);
-
     try {
       const data = await apiRequest(API_PRODUCTS);
       setProducts(getProductArray(data));
@@ -1094,27 +1065,24 @@ export default function DatabaseFront() {
     } finally {
       setLoadingProducts(false);
     }
-  }, [apiRequest]);
+  }, []);
 
   const loadSales = useCallback(async () => {
     setLoadingSales(true);
-
     try {
       const query = new URLSearchParams({
         from: reportDate,
         to: reportDate,
         currency,
       });
-
       const data = await apiRequest(`${API_SALES}?${query.toString()}`);
-
-      setSales(Array.isArray(data) ? data : data.sales || []);
+      setSales(Array.isArray(data) ? data : data.sales || data.data || []);
     } catch (err) {
       setError(`Could not load sales report: ${err.message}`);
     } finally {
       setLoadingSales(false);
     }
-  }, [apiRequest, reportDate, currency]);
+  }, [reportDate, currency]);
 
   useEffect(() => {
     loadProducts();
@@ -1126,13 +1094,11 @@ export default function DatabaseFront() {
 
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
-
     return products.filter((p) => productName(p).toLowerCase().includes(query));
   }, [products, search]);
 
   const addProduct = (product) => {
     const id = productId(product);
-
     if (!id) {
       setError("The selected product has no ID.");
       return;
@@ -1143,7 +1109,6 @@ export default function DatabaseFront() {
 
     setCart((old) => {
       const found = old.find((item) => item.productId === id);
-
       if (found) {
         return old.map((item) =>
           item.productId === id
@@ -1191,23 +1156,17 @@ export default function DatabaseFront() {
 
   const calculateItem = (item) => {
     const quantity = Math.max(0, Number(item.quantity) || 0);
-
     const grossRevenue = quantity * Math.max(0, Number(item.sellingPrice) || 0);
-
     const rawDiscount =
       item.discountType === "percent"
         ? (grossRevenue * (Number(item.discountValue) || 0)) / 100
         : Number(item.discountValue) || 0;
-
     const discountAmount = Math.min(grossRevenue, Math.max(0, rawDiscount));
-
     const netRevenue = grossRevenue - discountAmount;
-
     const shipping =
       shippingMode === "per-product"
         ? quantity * Math.max(0, Number(item.shippingShare) || 0)
         : 0;
-
     const totalCost =
       quantity * Math.max(0, Number(item.purchasePrice) || 0) +
       Math.max(0, Number(item.extraCost) || 0) +
@@ -1224,24 +1183,18 @@ export default function DatabaseFront() {
 
   const totals = useMemo(() => {
     const calculated = cart.map(calculateItem);
-
     const grossRevenue = calculated.reduce(
       (sum, row) => sum + row.grossRevenue,
       0,
     );
-
     const discountTotal = calculated.reduce(
       (sum, row) => sum + row.discountAmount,
       0,
     );
-
     const netRevenue = calculated.reduce((sum, row) => sum + row.netRevenue, 0);
-
     const itemCosts = calculated.reduce((sum, row) => sum + row.totalCost, 0);
-
     const shipping =
       shippingMode === "per-sale" ? Number(shippingTotal) || 0 : 0;
-
     const totalCost = itemCosts + shipping + (Number(otherOrderCosts) || 0);
 
     return {
@@ -1259,12 +1212,10 @@ export default function DatabaseFront() {
       setError("Choose at least one product before saving.");
       return;
     }
-
     if (!saleDate) {
       setError("Choose the sale date.");
       return;
     }
-
     if (cart.some((item) => Number(item.quantity) < 1)) {
       setError("Every product must have a quantity of at least 1.");
       return;
@@ -1307,7 +1258,6 @@ export default function DatabaseFront() {
       setOtherOrderCosts("0");
       setSaleDate(today());
       setReportDate(saleDate);
-
       await loadSales();
       setActiveTab("reports");
     } catch (err) {
@@ -1322,21 +1272,17 @@ export default function DatabaseFront() {
       type: item.discountType,
       value: String(item.discountValue),
     });
-
     setDiscountOpen(item.productId);
   };
 
   const applyDiscount = () => {
     const value = Math.max(0, Number(discountDraft.value) || 0);
-
     if (discountDraft.type === "percent" && value > 100) {
       setError("Discount percentage cannot exceed 100%.");
       return;
     }
-
     updateItem(discountOpen, "discountType", discountDraft.type);
     updateItem(discountOpen, "discountValue", value);
-
     setDiscountOpen(null);
     setError("");
   };
@@ -1350,12 +1296,7 @@ export default function DatabaseFront() {
           profit: sum.profit + (Number(sale.profit) || 0),
           count: sum.count + 1,
         }),
-        {
-          revenue: 0,
-          costs: 0,
-          profit: 0,
-          count: 0,
-        },
+        { revenue: 0, costs: 0, profit: 0, count: 0 },
       ),
     [sales],
   );
@@ -1367,7 +1308,6 @@ export default function DatabaseFront() {
           <div className="rounded-xl bg-sky-400 p-2 text-slate-950">
             <Calculator size={23} />
           </div>
-
           <div>
             <h1 className="font-bold">Database Admin</h1>
             <p className="text-xs text-slate-400">Sales & accounting</p>
@@ -1377,7 +1317,6 @@ export default function DatabaseFront() {
         <nav className="grid grid-cols-2 gap-2 md:grid-cols-1">
           {navigation.map((item) => {
             const Icon = item.icon;
-
             return (
               <button
                 type="button"
@@ -1397,7 +1336,6 @@ export default function DatabaseFront() {
 
         <div className="mt-8 hidden rounded-xl border border-slate-800 p-4 md:block">
           <p className="text-xs text-slate-400">Currency</p>
-
           <select
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
@@ -1419,11 +1357,9 @@ export default function DatabaseFront() {
               <p className="text-sm font-medium text-sky-600">
                 BUSINESS MANAGEMENT
               </p>
-
               <h2 className="mt-1 text-3xl font-bold">
                 {navigation.find((item) => item.id === activeTab)?.label}
               </h2>
-
               <p className="mt-2 text-sm text-slate-500">
                 Manage products, sales, discounts, costs and accounting.
               </p>
@@ -1441,7 +1377,6 @@ export default function DatabaseFront() {
                   </option>
                 ))}
               </select>
-
               <button
                 type="button"
                 onClick={() => {
@@ -1478,21 +1413,18 @@ export default function DatabaseFront() {
                   value={money(totals.netRevenue, currency)}
                   icon={ShoppingCart}
                 />
-
                 <StatCard
                   title="Total Discounts"
                   value={money(totals.discountTotal, currency)}
                   icon={Tag}
                   tone="amber"
                 />
-
                 <StatCard
                   title="Total Costs"
                   value={money(totals.totalCost, currency)}
                   icon={Receipt}
                   tone="purple"
                 />
-
                 <StatCard
                   title={
                     totals.profit >= 0 ? "Estimated Profit" : "Estimated Loss"
@@ -1511,13 +1443,11 @@ export default function DatabaseFront() {
                       Select a product to add it to your sale.
                     </p>
                   </div>
-
                   <div className="relative w-full md:max-w-sm">
                     <Search
                       size={18}
                       className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                     />
-
                     <input
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
@@ -1537,7 +1467,6 @@ export default function DatabaseFront() {
                         <th className="px-5 py-4">Action</th>
                       </tr>
                     </thead>
-
                     <tbody className="divide-y divide-slate-100">
                       {loadingProducts ? (
                         <tr>
@@ -1570,21 +1499,17 @@ export default function DatabaseFront() {
                                     <Package size={20} />
                                   </div>
                                 )}
-
                                 <span className="font-semibold">
                                   {productName(product)}
                                 </span>
                               </div>
                             </td>
-
                             <td className="px-5 py-4 font-semibold">
                               {money(sellingPrice(product), currency)}
                             </td>
-
                             <td className="px-5 py-4">
                               {money(purchasePrice(product), currency)}
                             </td>
-
                             <td className="px-5 py-4">
                               <button
                                 type="button"
@@ -1610,7 +1535,6 @@ export default function DatabaseFront() {
                       Adjust quantities, prices and discounts before saving.
                     </p>
                   </div>
-
                   <label className="flex items-center gap-2 text-sm font-medium">
                     <CalendarDays size={18} className="text-slate-400" />
                     <input
@@ -1640,7 +1564,6 @@ export default function DatabaseFront() {
                         <th className="px-3 py-4">Remove</th>
                       </tr>
                     </thead>
-
                     <tbody className="divide-y divide-slate-100">
                       {cart.length === 0 ? (
                         <tr>
@@ -1663,7 +1586,6 @@ export default function DatabaseFront() {
                       ) : (
                         cart.map((item) => {
                           const result = calculateItem(item);
-
                           return (
                             <tr
                               key={item.productId}
@@ -1672,7 +1594,6 @@ export default function DatabaseFront() {
                               <td className="px-4 py-4 font-semibold">
                                 {item.productName}
                               </td>
-
                               <td className="px-3 py-4">
                                 <div className="flex items-center gap-1.5">
                                   <button
@@ -1688,7 +1609,6 @@ export default function DatabaseFront() {
                                   >
                                     <Minus size={13} />
                                   </button>
-
                                   <input
                                     type="number"
                                     min="1"
@@ -1702,7 +1622,6 @@ export default function DatabaseFront() {
                                     }
                                     className="w-14 rounded-lg border px-2 py-2 text-center"
                                   />
-
                                   <button
                                     type="button"
                                     onClick={() =>
@@ -1718,7 +1637,6 @@ export default function DatabaseFront() {
                                   </button>
                                 </div>
                               </td>
-
                               <td className="px-3 py-4">
                                 <input
                                   type="number"
@@ -1734,7 +1652,6 @@ export default function DatabaseFront() {
                                   className="w-24 rounded-lg border px-2 py-2"
                                 />
                               </td>
-
                               <td className="px-3 py-4">
                                 <input
                                   type="number"
@@ -1750,7 +1667,6 @@ export default function DatabaseFront() {
                                   className="w-24 rounded-lg border px-2 py-2"
                                 />
                               </td>
-
                               <td className="px-3 py-4">
                                 <button
                                   type="button"
@@ -1765,7 +1681,6 @@ export default function DatabaseFront() {
                                     : "Discount"}
                                 </button>
                               </td>
-
                               <td className="px-3 py-4">
                                 <input
                                   type="number"
@@ -1781,7 +1696,6 @@ export default function DatabaseFront() {
                                   className="w-24 rounded-lg border px-2 py-2"
                                 />
                               </td>
-
                               {shippingMode === "per-product" && (
                                 <td className="px-3 py-4">
                                   <input
@@ -1799,21 +1713,14 @@ export default function DatabaseFront() {
                                   />
                                 </td>
                               )}
-
                               <td className="px-3 py-4 font-semibold">
                                 {money(result.netRevenue, currency)}
                               </td>
-
                               <td
-                                className={`px-3 py-4 font-bold ${
-                                  result.profit >= 0
-                                    ? "text-emerald-600"
-                                    : "text-red-600"
-                                }`}
+                                className={`px-3 py-4 font-bold ${result.profit >= 0 ? "text-emerald-600" : "text-red-600"}`}
                               >
                                 {money(result.profit, currency)}
                               </td>
-
                               <td className="px-3 py-4">
                                 <button
                                   type="button"
@@ -1834,7 +1741,6 @@ export default function DatabaseFront() {
                 <div className="grid gap-5 border-t border-slate-100 bg-slate-50 p-5 lg:grid-cols-2">
                   <div className="space-y-4">
                     <h4 className="font-bold">Shipping & Other Costs</h4>
-
                     <label className="block space-y-1.5">
                       <span className="text-sm font-medium text-slate-600">
                         Shipping Method
@@ -1852,7 +1758,6 @@ export default function DatabaseFront() {
                         </option>
                       </select>
                     </label>
-
                     {shippingMode === "per-sale" && (
                       <Field
                         label={`Order Shipping (${currency})`}
@@ -1862,7 +1767,6 @@ export default function DatabaseFront() {
                         onChange={setShippingTotal}
                       />
                     )}
-
                     <Field
                       label={`Other Order Costs (${currency})`}
                       type="number"
@@ -1874,24 +1778,19 @@ export default function DatabaseFront() {
 
                   <div className="rounded-xl border border-slate-200 bg-white p-4">
                     <h4 className="mb-3 font-bold">Sale Summary</h4>
-
                     <SummaryLine label="Total units" value={totals.count} />
-
                     <SummaryLine
                       label="Gross revenue"
                       value={money(totals.grossRevenue, currency)}
                     />
-
                     <SummaryLine
                       label="Discounts"
                       value={money(totals.discountTotal, currency)}
                     />
-
                     <SummaryLine
                       label="Total costs"
                       value={money(totals.totalCost, currency)}
                     />
-
                     <div className="mt-3 border-t border-slate-100 pt-3">
                       <SummaryLine
                         label={
@@ -1908,15 +1807,13 @@ export default function DatabaseFront() {
                         }
                       />
                     </div>
-
                     <button
                       type="button"
                       onClick={saveSale}
                       disabled={saving || cart.length === 0}
                       className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-sky-500 px-5 py-3.5 font-bold text-white hover:bg-sky-600 disabled:opacity-50"
                     >
-                      <Save size={18} />
-                      {saving ? "Saving..." : "Save Sale"}
+                      <Save size={18} /> {saving ? "Saving..." : "Save Sale"}
                     </button>
                   </div>
                 </div>
@@ -1933,7 +1830,6 @@ export default function DatabaseFront() {
                     Products loaded from your website API.
                   </p>
                 </div>
-
                 <button
                   type="button"
                   onClick={loadProducts}
@@ -1942,7 +1838,6 @@ export default function DatabaseFront() {
                   <RefreshCw size={16} /> Refresh Products
                 </button>
               </div>
-
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[650px] text-left text-sm">
                   <thead className="bg-slate-50 text-slate-500">
@@ -1953,7 +1848,6 @@ export default function DatabaseFront() {
                       <th className="px-5 py-4">Action</th>
                     </tr>
                   </thead>
-
                   <tbody className="divide-y divide-slate-100">
                     {products.map((product) => (
                       <tr
@@ -1983,7 +1877,6 @@ export default function DatabaseFront() {
                         </td>
                       </tr>
                     ))}
-
                     {!products.length && (
                       <tr>
                         <td
@@ -2009,7 +1902,6 @@ export default function DatabaseFront() {
                     Choose a date to review saved sales.
                   </p>
                 </div>
-
                 <div className="flex flex-wrap items-center gap-2">
                   <input
                     type="date"
@@ -2017,7 +1909,6 @@ export default function DatabaseFront() {
                     onChange={(e) => setReportDate(e.target.value)}
                     className="rounded-xl border border-slate-200 px-3 py-2.5"
                   />
-
                   <button
                     type="button"
                     onClick={loadSales}
@@ -2034,20 +1925,17 @@ export default function DatabaseFront() {
                   value={reportTotals.count}
                   icon={Receipt}
                 />
-
                 <StatCard
                   title="Net Revenue"
                   value={money(reportTotals.revenue, currency)}
                   icon={TrendingUp}
                 />
-
                 <StatCard
                   title="Total Costs"
                   value={money(reportTotals.costs, currency)}
                   icon={Calculator}
                   tone="purple"
                 />
-
                 <StatCard
                   title="Profit / Loss"
                   value={money(Math.abs(reportTotals.profit), currency)}
@@ -2067,7 +1955,6 @@ export default function DatabaseFront() {
                       <th className="px-5 py-4">Profit / Loss</th>
                     </tr>
                   </thead>
-
                   <tbody className="divide-y divide-slate-100">
                     {loadingSales ? (
                       <tr>
@@ -2095,7 +1982,6 @@ export default function DatabaseFront() {
                               sale.saleDate || sale.createdAt || "",
                             ).slice(0, 10) || "—"}
                           </td>
-
                           <td className="px-5 py-4">
                             {(sale.items || [])
                               .map(
@@ -2104,21 +1990,14 @@ export default function DatabaseFront() {
                               )
                               .join(", ") || "—"}
                           </td>
-
                           <td className="px-5 py-4 font-semibold">
                             {money(sale.netRevenue, currency)}
                           </td>
-
                           <td className="px-5 py-4">
                             {money(sale.totalCost, currency)}
                           </td>
-
                           <td
-                            className={`px-5 py-4 font-bold ${
-                              Number(sale.profit) >= 0
-                                ? "text-emerald-600"
-                                : "text-red-600"
-                            }`}
+                            className={`px-5 py-4 font-bold ${Number(sale.profit) >= 0 ? "text-emerald-600" : "text-red-600"}`}
                           >
                             {money(sale.profit, currency)}
                           </td>
@@ -2142,10 +2021,8 @@ export default function DatabaseFront() {
           <div className="w-full max-w-md rounded-2xl border border-slate-100 bg-white p-6 shadow-2xl">
             <div className="mb-5 flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-xl font-bold">
-                <Tag size={21} className="text-sky-500" />
-                Set Product Discount
+                <Tag size={21} className="text-sky-500" /> Set Product Discount
               </h3>
-
               <button
                 type="button"
                 onClick={() => setDiscountOpen(null)}
@@ -2159,14 +2036,10 @@ export default function DatabaseFront() {
               <span className="text-sm font-medium text-slate-600">
                 Discount Type
               </span>
-
               <select
                 value={discountDraft.type}
                 onChange={(e) =>
-                  setDiscountDraft((old) => ({
-                    ...old,
-                    type: e.target.value,
-                  }))
+                  setDiscountDraft((old) => ({ ...old, type: e.target.value }))
                 }
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3"
               >
@@ -2182,10 +2055,7 @@ export default function DatabaseFront() {
                 min="0"
                 value={discountDraft.value}
                 onChange={(value) =>
-                  setDiscountDraft((old) => ({
-                    ...old,
-                    value,
-                  }))
+                  setDiscountDraft((old) => ({ ...old, value }))
                 }
               />
             </div>
@@ -2198,7 +2068,6 @@ export default function DatabaseFront() {
               >
                 Cancel
               </button>
-
               <button
                 type="button"
                 onClick={applyDiscount}
