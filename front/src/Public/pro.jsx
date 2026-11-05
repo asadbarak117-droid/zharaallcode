@@ -1,16 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Search,
   Heart,
   ShoppingBag,
   ArrowRight,
-  ArrowLeft,
   Sparkles,
   X,
+  Play,
+  Upload,
+  MessageCircle,
+  Send,
+  Video,
+  Trash2,
 } from "lucide-react";
 
 const API_URL = "https://zharaallcode.onrender.com/api/productsection";
+
 const defaultCategories = [
   "Makeup",
   "Skincare",
@@ -102,7 +108,13 @@ export default function Products() {
   const [favorites, setFavorites] = useState([]);
   const [showFavorites, setShowFavorites] = useState(false);
 
-  const categorySliderRef = useRef(null);
+  const [videos, setVideos] = useState([]);
+  const [videoTitle, setVideoTitle] = useState("");
+  const [videoDescription, setVideoDescription] = useState("");
+
+  const [comments, setComments] = useState([]);
+  const [commentName, setCommentName] = useState("");
+  const [commentText, setCommentText] = useState("");
 
   const categories = useMemo(
     () => [
@@ -183,6 +195,12 @@ export default function Products() {
     return () => controller.abort();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      videos.forEach((video) => URL.revokeObjectURL(video.url));
+    };
+  }, [videos]);
+
   const filteredProducts = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
 
@@ -223,16 +241,61 @@ export default function Products() {
     });
   };
 
-  const slideCategories = (direction) => {
-    categorySliderRef.current?.scrollBy({
-      left: direction * 300,
-      behavior: "smooth",
+  const handleVideoUpload = (event) => {
+    const files = Array.from(event.target.files || []);
+
+    const newVideos = files
+      .filter((file) => file.type.startsWith("video/"))
+      .map((file) => ({
+        id: `${Date.now()}-${Math.random()}`,
+        file,
+        url: URL.createObjectURL(file),
+        title: file.name.replace(/\.[^/.]+$/, ""),
+        description: "",
+      }));
+
+    setVideos((current) => [...current, ...newVideos]);
+    event.target.value = "";
+  };
+
+  const removeVideo = (id) => {
+    setVideos((current) => {
+      const video = current.find((item) => item.id === id);
+
+      if (video) {
+        URL.revokeObjectURL(video.url);
+      }
+
+      return current.filter((item) => item.id !== id);
     });
+  };
+
+  const addComment = (event) => {
+    event.preventDefault();
+
+    if (!commentName.trim() || !commentText.trim()) {
+      return;
+    }
+
+    setComments((current) => [
+      {
+        id: Date.now(),
+        name: commentName.trim(),
+        text: commentText.trim(),
+        date: new Date().toLocaleDateString(),
+      },
+      ...current,
+    ]);
+
+    setCommentName("");
+    setCommentText("");
   };
 
   return (
     <main className="min-h-screen bg-white px-4 py-10 text-slate-900 sm:px-6 lg:px-10">
       <div className="mx-auto max-w-7xl">
+        {/* PAGE HEADER */}
+
         <motion.header
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -253,12 +316,22 @@ export default function Products() {
           </p>
         </motion.header>
 
+        {/* HERO */}
+
         <motion.section
           initial={{ opacity: 0, y: 25 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7 }}
           style={{
-            background: `linear-gradient(90deg, ${/^#[0-9a-fA-F]{6}$/.test(config.heroColor) ? config.heroColor : "#e0f2fe"}, #ffffff, ${/^#[0-9a-fA-F]{6}$/.test(config.heroColor) ? config.heroColor : "#e0f2fe"})`,
+            background: `linear-gradient(90deg, ${
+              /^#[0-9a-fA-F]{6}$/.test(config.heroColor)
+                ? config.heroColor
+                : "#e0f2fe"
+            }, #ffffff, ${
+              /^#[0-9a-fA-F]{6}$/.test(config.heroColor)
+                ? config.heroColor
+                : "#e0f2fe"
+            })`,
           }}
           className="relative mb-14 overflow-hidden rounded-3xl p-8 md:p-14"
         >
@@ -266,7 +339,10 @@ export default function Products() {
             <div
               className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-10"
               style={{
-                backgroundImage: `url("${config.heroImage.replace(/"/g, "%22")}")`,
+                backgroundImage: `url("${config.heroImage.replace(
+                  /"/g,
+                  "%22",
+                )}")`,
               }}
             />
           )}
@@ -297,42 +373,24 @@ export default function Products() {
           </div>
         </motion.section>
 
-        <section className="mb-14">
-          <div className="mb-6 flex items-end justify-between gap-4">
-            <div>
-              <p className="text-sm font-bold uppercase tracking-widest text-sky-600">
-                Explore Our Collection
-              </p>
-              <h2 className="mt-2 text-2xl font-bold md:text-3xl">
-                Shop by Category
-              </h2>
-              <p className="mt-2 text-slate-500">
-                Slide to explore all categories.
-              </p>
-            </div>
+        {/* SHOP BY CATEGORY - GRID */}
 
-            <div className="hidden shrink-0 gap-2 sm:flex">
-              <button
-                onClick={() => slideCategories(-1)}
-                aria-label="Previous categories"
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 transition hover:border-sky-400 hover:bg-sky-50"
-              >
-                <ArrowLeft size={20} />
-              </button>
-              <button
-                onClick={() => slideCategories(1)}
-                aria-label="Next categories"
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 transition hover:border-sky-400 hover:bg-sky-50"
-              >
-                <ArrowRight size={20} />
-              </button>
-            </div>
+        <section className="mb-16">
+          <div className="mb-6">
+            <p className="text-sm font-bold uppercase tracking-widest text-sky-600">
+              Explore Our Collection
+            </p>
+
+            <h2 className="mt-2 text-2xl font-bold md:text-3xl">
+              Shop by Category
+            </h2>
+
+            <p className="mt-2 text-slate-500">
+              Discover your favorite beauty and care collections.
+            </p>
           </div>
 
-          <div
-            ref={categorySliderRef}
-            className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-5 [scrollbar-width:thin]"
-          >
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {categoryCards.map((category, index) => (
               <motion.button
                 key={category.name}
@@ -348,7 +406,7 @@ export default function Products() {
                   setSearchTerm("");
                   scrollToProducts();
                 }}
-                className="group relative h-52 w-64 shrink-0 snap-start overflow-hidden rounded-2xl text-left sm:h-60 sm:w-72"
+                className="group relative h-48 overflow-hidden rounded-2xl text-left sm:h-56 lg:h-64"
               >
                 <img
                   src={category.image}
@@ -356,15 +414,20 @@ export default function Products() {
                   loading="lazy"
                   className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
                 />
+
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
 
-                <div className="absolute inset-x-0 bottom-0 p-5 text-white">
+                <div className="absolute inset-x-0 bottom-0 p-4 text-white sm:p-5">
                   <p className="text-xs font-medium uppercase tracking-widest text-white/80">
                     {category.subtitle}
                   </p>
-                  <div className="mt-2 flex items-center justify-between gap-3">
-                    <h3 className="text-xl font-bold">{category.name}</h3>
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 transition group-hover:bg-white group-hover:text-sky-700">
+
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <h3 className="text-lg font-bold sm:text-xl">
+                      {category.name}
+                    </h3>
+
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/20 transition group-hover:bg-white group-hover:text-sky-700">
                       <ArrowRight size={18} />
                     </span>
                   </div>
@@ -372,20 +435,108 @@ export default function Products() {
               </motion.button>
             ))}
           </div>
-
-          <p className="text-xs text-slate-400">
-            Tip: You can also swipe left or right on mobile.
-          </p>
         </section>
+
+        {/* BEAUTY VIDEOS */}
+
+        <section className="mb-16">
+          <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-widest text-sky-600">
+                Beauty Inspiration
+              </p>
+
+              <h2 className="mt-2 text-2xl font-bold md:text-3xl">
+                Beauty Videos
+              </h2>
+
+              <p className="mt-2 text-slate-500">
+                Explore tutorials, product demonstrations and beauty tips.
+              </p>
+            </div>
+
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-sky-600 px-5 py-3 font-semibold text-white transition hover:bg-sky-700">
+              <Upload size={19} />
+              Upload Videos
+              <input
+                type="file"
+                accept="video/*"
+                multiple
+                onChange={handleVideoUpload}
+                className="hidden"
+              />
+            </label>
+          </div>
+
+          {videos.length > 0 ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {videos.map((video) => (
+                <motion.article
+                  key={video.id}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+                >
+                  <div className="relative bg-black">
+                    <video
+                      src={video.url}
+                      controls
+                      playsInline
+                      className="aspect-video w-full"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 p-4">
+                    <div className="min-w-0">
+                      <h3 className="truncate font-bold text-slate-800">
+                        {video.title}
+                      </h3>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Uploaded video
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => removeVideo(video.id)}
+                      aria-label="Remove video"
+                      className="rounded-lg p-2 text-red-500 transition hover:bg-red-50"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </motion.article>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-100 text-sky-600">
+                <Video size={30} />
+              </div>
+
+              <h3 className="mt-5 text-xl font-bold text-slate-800">
+                No Videos Yet
+              </h3>
+
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+                Upload your beauty tutorials, product demonstrations and
+                collection videos.
+              </p>
+            </div>
+          )}
+        </section>
+
+        {/* PRODUCT SEARCH AND FILTERS */}
 
         <section className="mb-8">
           <div className="mb-6">
             <p className="text-sm font-bold uppercase tracking-widest text-sky-600">
               Find Your Favorites
             </p>
+
             <h2 className="mt-2 text-2xl font-bold md:text-3xl">
               Our Beauty Collection
             </h2>
+
             <p className="mt-2 text-slate-500">
               Search by product name, code, or category.
             </p>
@@ -397,6 +548,7 @@ export default function Products() {
                 size={20}
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
               />
+
               <input
                 type="text"
                 value={searchTerm}
@@ -404,6 +556,7 @@ export default function Products() {
                 placeholder="Search products, codes, categories..."
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-12 outline-none transition focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100"
               />
+
               {searchTerm && (
                 <button
                   onClick={() => setSearchTerm("")}
@@ -428,7 +581,7 @@ export default function Products() {
             </button>
           </div>
 
-          <div className="mt-5 flex gap-2 overflow-x-auto pb-3">
+          <div className="mt-5 flex flex-wrap gap-2">
             {categories.map((category) => (
               <button
                 key={category}
@@ -436,7 +589,7 @@ export default function Products() {
                   setSelectedCategory(category);
                   setShowFavorites(false);
                 }}
-                className={`shrink-0 rounded-full px-5 py-2.5 text-sm font-semibold transition ${
+                className={`rounded-full px-5 py-2.5 text-sm font-semibold transition ${
                   selectedCategory === category
                     ? "bg-sky-600 text-white shadow-md shadow-sky-100"
                     : "border border-slate-200 bg-white text-slate-600 hover:border-sky-300 hover:text-sky-700"
@@ -455,6 +608,7 @@ export default function Products() {
               </span>{" "}
               products
             </p>
+
             {(searchTerm ||
               selectedCategory !== "All Products" ||
               showFavorites) && (
@@ -472,6 +626,8 @@ export default function Products() {
           </div>
         </section>
 
+        {/* PRODUCT GRID */}
+
         <section id="product-grid" className="scroll-mt-8">
           {loading ? (
             <div className="rounded-3xl bg-slate-50 px-6 py-16 text-center">
@@ -482,6 +638,7 @@ export default function Products() {
           ) : loadError && products.length === 0 ? (
             <div className="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-16 text-center">
               <p className="font-semibold text-amber-800">{loadError}</p>
+
               <button
                 onClick={() => window.location.reload()}
                 className="mt-5 rounded-full bg-sky-600 px-6 py-3 font-semibold text-white hover:bg-sky-700"
@@ -550,6 +707,7 @@ export default function Products() {
                       <span className="text-xs font-bold uppercase tracking-wider text-sky-600">
                         Code: {product.code || "N/A"}
                       </span>
+
                       <Sparkles size={16} className="text-sky-400" />
                     </div>
 
@@ -583,12 +741,15 @@ export default function Products() {
           ) : (
             <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-16 text-center">
               <Search size={42} className="mx-auto text-slate-300" />
+
               <h3 className="mt-4 text-xl font-bold text-slate-800">
                 No products found
               </h3>
+
               <p className="mt-2 text-slate-500">
                 Try another search term or choose a different category.
               </p>
+
               <button
                 onClick={() => {
                   setSearchTerm("");
@@ -603,6 +764,150 @@ export default function Products() {
           )}
         </section>
 
+        {/* CUSTOMER COMMENTS */}
+
+        <section className="mt-20">
+          <div className="mb-8 text-center">
+            <p className="text-sm font-bold uppercase tracking-widest text-sky-600">
+              Your Experience Matters
+            </p>
+
+            <h2 className="mt-2 text-3xl font-bold md:text-4xl">
+              Customer Comments
+            </h2>
+
+            <p className="mx-auto mt-3 max-w-xl leading-7 text-slate-500">
+              Share your experience, feedback and thoughts about LEDORA.
+            </p>
+          </div>
+
+          <div className="grid gap-8 lg:grid-cols-2">
+            {/* COMMENT FORM */}
+
+            <form
+              onSubmit={addComment}
+              className="rounded-3xl border border-slate-200 bg-slate-50 p-6 md:p-8"
+            >
+              <div className="mb-6 flex items-center gap-3">
+                <div className="rounded-xl bg-sky-100 p-3 text-sky-600">
+                  <MessageCircle size={23} />
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-bold">Write a Comment</h3>
+
+                  <p className="text-sm text-slate-500">
+                    Tell us about your experience.
+                  </p>
+                </div>
+              </div>
+
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
+                Your Name
+              </label>
+
+              <input
+                type="text"
+                value={commentName}
+                onChange={(event) => setCommentName(event.target.value)}
+                placeholder="Enter your name"
+                maxLength={60}
+                required
+                className="mb-5 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+              />
+
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
+                Your Comment
+              </label>
+
+              <textarea
+                value={commentText}
+                onChange={(event) => setCommentText(event.target.value)}
+                placeholder="Write your experience here..."
+                rows={5}
+                maxLength={1000}
+                required
+                className="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+              />
+
+              <button
+                type="submit"
+                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-6 py-3.5 font-semibold text-white transition hover:bg-sky-700"
+              >
+                <Send size={18} />
+                Submit Comment
+              </button>
+            </form>
+
+            {/* COMMENTS LIST */}
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 md:p-8">
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold">Community Feedback</h3>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    {comments.length} comments
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-sky-50 p-3 text-sky-600">
+                  <MessageCircle size={23} />
+                </div>
+              </div>
+
+              {comments.length > 0 ? (
+                <div className="max-h-[450px] space-y-4 overflow-y-auto pr-2">
+                  {comments.map((comment) => (
+                    <motion.div
+                      key={comment.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="rounded-2xl bg-slate-50 p-5"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-sky-100 font-bold text-sky-700">
+                            {comment.name.charAt(0).toUpperCase()}
+                          </div>
+
+                          <div>
+                            <h4 className="font-bold text-slate-800">
+                              {comment.name}
+                            </h4>
+
+                            <p className="text-xs text-slate-400">
+                              {comment.date}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <p className="mt-4 text-sm leading-7 text-slate-600">
+                        {comment.text}
+                      </p>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex min-h-64 flex-col items-center justify-center rounded-2xl bg-slate-50 px-5 text-center">
+                  <MessageCircle size={38} className="text-slate-300" />
+
+                  <h4 className="mt-4 font-bold text-slate-700">
+                    No Comments Yet
+                  </h4>
+
+                  <p className="mt-2 text-sm text-slate-500">
+                    Be the first to share your experience with us.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* CONTACT SECTION */}
+
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -610,17 +915,21 @@ export default function Products() {
           className="relative mt-16 overflow-hidden rounded-3xl bg-slate-900 px-6 py-12 text-center text-white md:px-12 md:py-16"
         >
           <div className="pointer-events-none absolute -left-12 -top-16 h-56 w-56 rounded-full bg-sky-500/20 blur-3xl" />
+
           <div className="pointer-events-none absolute -bottom-20 -right-10 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
 
           <div className="relative z-10 mx-auto max-w-2xl">
             <Sparkles size={30} className="mx-auto text-cyan-300" />
+
             <h2 className="mt-5 text-3xl font-bold md:text-4xl">
               Need Help Choosing?
             </h2>
+
             <p className="mt-4 leading-7 text-slate-300">
               Have questions about a product? Contact us to learn more about our
               collection.
             </p>
+
             <a
               href="/connect"
               className="mt-7 inline-flex items-center gap-2 rounded-full bg-white px-7 py-3 font-bold text-slate-900 transition hover:bg-cyan-100"

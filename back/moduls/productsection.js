@@ -2,42 +2,42 @@ const mongoose = require("mongoose");
 
 const productSchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    code: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-    category: {
-      type: String,
-      default: "Makeup",
-      trim: true,
-    },
-    image: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-    description: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-    price: {
-      type: String,
-      default: "",
-    },
-    badge: {
-      type: String,
-      default: "",
-      trim: true,
-    },
+    name: { type: String, required: true, trim: true },
+    code: { type: String, default: "", trim: true },
+    category: { type: String, default: "Makeup", trim: true },
+    image: { type: String, default: "" },
+    description: { type: String, default: "", trim: true },
+    price: { type: String, default: "" },
+    badge: { type: String, default: "", trim: true },
   },
   { timestamps: true },
+);
+
+const videoSchema = new mongoose.Schema(
+  {
+    title: { type: String, default: "", trim: true },
+    description: { type: String, default: "", trim: true },
+    url: { type: String, required: true, trim: true },
+  },
+  { timestamps: true },
+);
+
+const commentSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    message: { type: String, required: true, trim: true },
+    approved: { type: Boolean, default: true },
+  },
+  { timestamps: true },
+);
+
+const categoryDetailSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    subtitle: { type: String, default: "", trim: true },
+    image: { type: String, default: "" },
+  },
+  { _id: false },
 );
 
 const productSectionSchema = new mongoose.Schema(
@@ -89,9 +89,48 @@ const productSectionSchema = new mongoose.Schema(
         "Pomegranate",
       ],
     },
+    categoryDetails: {
+      type: [categoryDetailSchema],
+      default: [],
+    },
     products: {
       type: [productSchema],
       default: [],
+    },
+    videos: {
+      type: [videoSchema],
+      default: [],
+    },
+    comments: {
+      type: [commentSchema],
+      default: [],
+    },
+    searchSection: {
+      badge: { type: String, default: "Find Your Favorites" },
+      title: { type: String, default: "Search Beauty Products" },
+      description: {
+        type: String,
+        default: "Find the products that match your beauty routine.",
+      },
+      placeholder: {
+        type: String,
+        default: "Search products by name or code...",
+      },
+      showCategoryFilters: { type: Boolean, default: true },
+      showFavorites: { type: Boolean, default: true },
+      showResultCount: { type: Boolean, default: true },
+      showClearButton: { type: Boolean, default: true },
+    },
+    contactSection: {
+      enabled: { type: Boolean, default: true },
+      title: { type: String, default: "Need Help Choosing?" },
+      description: {
+        type: String,
+        default:
+          "Contact us for beauty recommendations and product information.",
+      },
+      buttonText: { type: String, default: "Contact Us" },
+      buttonLink: { type: String, default: "/connect" },
     },
   },
   { timestamps: true },

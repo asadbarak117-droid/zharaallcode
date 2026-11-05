@@ -36,11 +36,8 @@ export default function Mother() {
 
   const isDashboard = path === "/admin";
 
-  // Close sidebar automatically when changing pages
   useEffect(() => {
-    if (path !== "/admin") {
-      setSidebarOpen(false);
-    }
+    setWebsiteExpanded(path.startsWith("/admin/website"));
   }, [path]);
 
   const menuItems = [
@@ -126,152 +123,166 @@ export default function Mother() {
   const handleNavigation = (item) => {
     if (item.children) {
       setWebsiteExpanded((previous) => !previous);
-      navigate(item.path);
+
+      if (path !== item.path) {
+        navigate(item.path);
+      }
+
       return;
     }
 
     navigate(item.path);
   };
 
+  const navigateTo = (targetPath) => {
+    navigate(targetPath);
+
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen w-full bg-slate-100 text-slate-800">
-      {/* SIDEBAR */}
+      {/* MOBILE OVERLAY */}
 
       {sidebarOpen && (
-        <>
-          <div
-            onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 z-40 bg-black/40 md:hidden"
-          />
-
-          <aside className="fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-col overflow-y-auto bg-slate-950 p-5 text-white shadow-xl">
-            {/* LOGO */}
-
-            <div className="mb-10 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-sky-400 p-2.5 text-slate-950">
-                  <ShoppingBag size={25} />
-                </div>
-
-                <div>
-                  <h1 className="text-lg font-bold tracking-wide">
-                    LEDORA ADMIN
-                  </h1>
-
-                  <p className="text-xs text-slate-400">Management Dashboard</p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="rounded-lg p-2 text-slate-300 transition hover:bg-slate-800 hover:text-white"
-              >
-                <X size={21} />
-              </button>
-            </div>
-
-            {/* MAIN MENU */}
-
-            <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-slate-500">
-              Main Management
-            </p>
-
-            <nav className="space-y-2">
-              {menuItems.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.path);
-
-                return (
-                  <div key={item.path}>
-                    <button
-                      onClick={() => handleNavigation(item)}
-                      className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm transition ${
-                        active
-                          ? "bg-sky-400 font-semibold text-slate-950"
-                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                      }`}
-                    >
-                      <span className="flex items-center gap-3">
-                        <Icon size={19} />
-                        {item.title}
-                      </span>
-
-                      {item.children &&
-                        (websiteExpanded ? (
-                          <ChevronDown size={17} />
-                        ) : (
-                          <ChevronRight size={17} />
-                        ))}
-                    </button>
-
-                    {/* WEBSITE SUBMENU */}
-
-                    {item.children && websiteExpanded && (
-                      <div className="ml-5 mt-2 space-y-1 border-l border-slate-700 pl-4">
-                        {item.children.map((child) => {
-                          const ChildIcon = child.icon;
-                          const childActive = isActive(child.path);
-
-                          return (
-                            <button
-                              key={child.path}
-                              onClick={() => navigate(child.path)}
-                              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition ${
-                                childActive
-                                  ? "bg-slate-800 font-semibold text-sky-400"
-                                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                              }`}
-                            >
-                              <ChildIcon size={16} />
-                              {child.title}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </nav>
-
-            {/* ACCOUNT */}
-
-            <div className="my-7 border-t border-slate-800" />
-
-            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
-              Account
-            </p>
-
-            <button
-              onClick={() => navigate("/admin/logout")}
-              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-slate-300 transition hover:bg-red-500/10 hover:text-red-400"
-            >
-              <LogOut size={19} />
-              Sign Out
-            </button>
-
-            {/* SECURITY */}
-
-            <div className="mt-auto pt-8">
-              <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-                <div className="mb-2 flex items-center gap-2 text-sky-400">
-                  <ShieldCheck size={18} />
-
-                  <span className="text-sm font-semibold">Secure Admin</span>
-                </div>
-
-                <p className="text-xs leading-6 text-slate-400">
-                  Manage your website and business information from one place.
-                </p>
-              </div>
-            </div>
-          </aside>
-        </>
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+        />
       )}
+
+      {/* SIDEBAR */}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-72 shrink-0 flex-col overflow-y-auto bg-slate-950 p-5 text-white shadow-xl transition-transform duration-300 md:sticky md:top-0 md:z-30 md:translate-x-0 md:shadow-none ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:hidden"
+        }`}
+      >
+        {/* LOGO */}
+
+        <div className="mb-10 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-sky-400 p-2.5 text-slate-950">
+              <ShoppingBag size={25} />
+            </div>
+
+            <div>
+              <h1 className="text-lg font-bold tracking-wide">LEDORA ADMIN</h1>
+
+              <p className="text-xs text-slate-400">Management Dashboard</p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="rounded-lg p-2 text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            <X size={21} />
+          </button>
+        </div>
+
+        {/* MAIN MENU */}
+
+        <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-slate-500">
+          Main Management
+        </p>
+
+        <nav className="space-y-2">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.path);
+
+            return (
+              <div key={item.path}>
+                <button
+                  onClick={() => handleNavigation(item)}
+                  className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm transition ${
+                    active
+                      ? "bg-sky-400 font-semibold text-slate-950"
+                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                  }`}
+                >
+                  <span className="flex items-center gap-3">
+                    <Icon size={19} />
+                    {item.title}
+                  </span>
+
+                  {item.children &&
+                    (websiteExpanded ? (
+                      <ChevronDown size={17} />
+                    ) : (
+                      <ChevronRight size={17} />
+                    ))}
+                </button>
+
+                {/* WEBSITE SUBMENU */}
+
+                {item.children && websiteExpanded && (
+                  <div className="ml-5 mt-2 space-y-1 border-l border-slate-700 pl-4">
+                    {item.children.map((child) => {
+                      const ChildIcon = child.icon;
+                      const childActive = isActive(child.path);
+
+                      return (
+                        <button
+                          key={child.path}
+                          onClick={() => navigateTo(child.path)}
+                          className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition ${
+                            childActive
+                              ? "bg-slate-800 font-semibold text-sky-400"
+                              : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                          }`}
+                        >
+                          <ChildIcon size={16} />
+                          {child.title}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* ACCOUNT */}
+
+        <div className="my-7 border-t border-slate-800" />
+
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+          Account
+        </p>
+
+        <button
+          onClick={() => navigateTo("/admin/logout")}
+          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-slate-300 transition hover:bg-red-500/10 hover:text-red-400"
+        >
+          <LogOut size={19} />
+          Sign Out
+        </button>
+
+        {/* SECURITY */}
+
+        <div className="mt-auto pt-8">
+          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+            <div className="mb-2 flex items-center gap-2 text-sky-400">
+              <ShieldCheck size={18} />
+
+              <span className="text-sm font-semibold">Secure Admin</span>
+            </div>
+
+            <p className="text-xs leading-6 text-slate-400">
+              Manage your website and business information from one place.
+            </p>
+          </div>
+        </div>
+      </aside>
 
       {/* MAIN CONTENT */}
 
-      <main className="min-w-0 w-full flex-1 p-4 md:p-8">
+      <main className="min-w-0 flex-1 p-4 transition-all duration-300 md:p-8">
         {/* TOP BAR */}
 
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
@@ -340,7 +351,7 @@ export default function Mother() {
                 </p>
 
                 <button
-                  onClick={() => navigate("/admin/website")}
+                  onClick={() => navigateTo("/admin/website")}
                   className="mt-7 inline-flex items-center gap-2 rounded-xl bg-sky-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-sky-300"
                 >
                   Manage Website
@@ -372,7 +383,7 @@ export default function Mother() {
                 return (
                   <button
                     key={module.path}
-                    onClick={() => navigate(module.path)}
+                    onClick={() => navigateTo(module.path)}
                     className="group relative flex min-h-72 flex-col rounded-3xl border border-slate-200 bg-white p-7 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:border-sky-200 hover:shadow-xl"
                   >
                     <div className="mb-7 flex w-full items-center justify-between">
