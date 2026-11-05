@@ -2,6 +2,12 @@ const mongoose = require("mongoose");
 
 const accountingTableSchema = new mongoose.Schema(
   {
+    tableId: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
     tableName: {
       type: String,
       required: true,

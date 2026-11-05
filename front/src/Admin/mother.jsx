@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 
 import {
@@ -14,6 +15,10 @@ import {
   Image,
   Package,
   MessageCircle,
+  Menu,
+  X,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 
 import AIAssistant from "./AIAssistant";
@@ -23,38 +28,41 @@ export default function Mother() {
   const location = useLocation();
 
   const path = location.pathname;
+
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [websiteExpanded, setWebsiteExpanded] = useState(
+    path.startsWith("/admin/website"),
+  );
+
   const isDashboard = path === "/admin";
 
   const menuItems = [
     {
-      title: "Dashboard",
-      icon: LayoutDashboard,
-      path: "/admin",
-    },
-    {
       title: "Website Management",
       icon: Globe,
       path: "/admin/website",
-    },
-    {
-      title: "Home Management",
-      icon: Home,
-      path: "/admin/website/home",
-    },
-    {
-      title: "Product Management",
-      icon: Package,
-      path: "/admin/website/product",
-    },
-    {
-      title: "Header Management",
-      icon: Image,
-      path: "/admin/website/header",
-    },
-    {
-      title: "Consultation",
-      icon: MessageCircle,
-      path: "/admin/website/consultation",
+      children: [
+        {
+          title: "Home Management",
+          icon: Home,
+          path: "/admin/website/home",
+        },
+        {
+          title: "Product Management",
+          icon: Package,
+          path: "/admin/website/product",
+        },
+        {
+          title: "Header Management",
+          icon: Image,
+          path: "/admin/website/header",
+        },
+        {
+          title: "Consultation",
+          icon: MessageCircle,
+          path: "/admin/website/consultation",
+        },
+      ],
     },
     {
       title: "Database",
@@ -65,6 +73,11 @@ export default function Mother() {
       title: "User Management",
       icon: Users,
       path: "/admin/users",
+    },
+    {
+      title: "Dashboard",
+      icon: LayoutDashboard,
+      path: "/admin",
     },
   ];
 
@@ -95,114 +108,212 @@ export default function Mother() {
     },
   ];
 
+  const isActive = (itemPath) => {
+    if (itemPath === "/admin") {
+      return path === "/admin";
+    }
+
+    return path === itemPath || path.startsWith(itemPath + "/");
+  };
+
+  const handleNavigation = (item) => {
+    navigate(item.path);
+
+    if (item.children) {
+      setWebsiteExpanded(!websiteExpanded);
+    }
+  };
+
   return (
-    <div
-      className={`min-h-screen bg-slate-100 text-slate-800 ${
-        isDashboard ? "md:flex" : "block"
-      }`}
-    >
-      {/* Mother Sidebar - Dashboard only */}
-      {isDashboard && (
-        <aside className="bg-slate-950 p-5 text-white md:min-h-screen md:w-64 md:shrink-0">
-          <div className="mb-9 flex items-center gap-3">
-            <div className="rounded-xl bg-sky-400 p-2.5 text-slate-950">
-              <ShoppingBag size={25} />
+    <div className="flex min-h-screen bg-slate-100 text-slate-800">
+      {/* SIDEBAR */}
+
+      {sidebarOpen && (
+        <>
+          <div
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          />
+
+          <aside className="fixed inset-y-0 left-0 z-50 flex w-72 shrink-0 flex-col overflow-y-auto bg-slate-950 p-5 text-white shadow-xl md:sticky md:h-screen">
+            {/* LOGO */}
+
+            <div className="mb-10 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-sky-400 p-2.5 text-slate-950">
+                  <ShoppingBag size={25} />
+                </div>
+
+                <div>
+                  <h1 className="text-lg font-bold tracking-wide">
+                    LEDORA ADMIN
+                  </h1>
+
+                  <p className="text-xs text-slate-400">Management Dashboard</p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="rounded-lg p-2 text-slate-300 transition hover:bg-slate-800 hover:text-white"
+              >
+                <X size={21} />
+              </button>
             </div>
 
-            <div>
-              <h1 className="text-lg font-bold tracking-wide">LEDORA ADMIN</h1>
-              <p className="text-xs text-slate-400">Management Dashboard</p>
-            </div>
-          </div>
+            {/* MAIN MENU */}
 
-          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
-            Main Menu
-          </p>
-
-          <nav className="space-y-1.5">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-
-              const active =
-                item.path === "/admin"
-                  ? path === "/admin"
-                  : path === item.path || path.startsWith(item.path + "/");
-
-              return (
-                <button
-                  key={item.path}
-                  onClick={() => navigate(item.path)}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${
-                    active
-                      ? "bg-sky-400 font-semibold text-slate-950"
-                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                  }`}
-                >
-                  <Icon size={18} />
-                  {item.title}
-                </button>
-              );
-            })}
-          </nav>
-
-          <div className="my-7 border-t border-slate-800" />
-
-          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
-            Account
-          </p>
-
-          <button
-            onClick={() => navigate("/admin/logout")}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-slate-300 transition hover:bg-red-500/10 hover:text-red-400"
-          >
-            <LogOut size={18} />
-            Sign Out
-          </button>
-
-          <div className="mt-10 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-            <div className="mb-2 flex items-center gap-2 text-sky-400">
-              <ShieldCheck size={18} />
-              <span className="text-sm font-semibold">Secure Admin</span>
-            </div>
-
-            <p className="text-xs leading-6 text-slate-400">
-              Manage your website and business information from one place.
+            <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-slate-500">
+              Main Management
             </p>
-          </div>
-        </aside>
+
+            <nav className="space-y-2">
+              {menuItems.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.path);
+
+                return (
+                  <div key={item.path}>
+                    <button
+                      onClick={() => handleNavigation(item)}
+                      className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm transition ${
+                        active
+                          ? "bg-sky-400 font-semibold text-slate-950"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      <span className="flex items-center gap-3">
+                        <Icon size={19} />
+                        {item.title}
+                      </span>
+
+                      {item.children &&
+                        (websiteExpanded ? (
+                          <ChevronDown size={17} />
+                        ) : (
+                          <ChevronRight size={17} />
+                        ))}
+                    </button>
+
+                    {/* WEBSITE SUBMENU */}
+
+                    {item.children && websiteExpanded && (
+                      <div className="ml-5 mt-2 space-y-1 border-l border-slate-700 pl-4">
+                        {item.children.map((child) => {
+                          const ChildIcon = child.icon;
+                          const childActive = isActive(child.path);
+
+                          return (
+                            <button
+                              key={child.path}
+                              onClick={() => navigate(child.path)}
+                              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition ${
+                                childActive
+                                  ? "bg-slate-800 font-semibold text-sky-400"
+                                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                              }`}
+                            >
+                              <ChildIcon size={16} />
+                              {child.title}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </nav>
+
+            {/* ACCOUNT */}
+
+            <div className="my-7 border-t border-slate-800" />
+
+            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+              Account
+            </p>
+
+            <button
+              onClick={() => navigate("/admin/logout")}
+              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-slate-300 transition hover:bg-red-500/10 hover:text-red-400"
+            >
+              <LogOut size={19} />
+              Sign Out
+            </button>
+
+            {/* SECURITY */}
+
+            <div className="mt-auto pt-8">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+                <div className="mb-2 flex items-center gap-2 text-sky-400">
+                  <ShieldCheck size={18} />
+
+                  <span className="text-sm font-semibold">Secure Admin</span>
+                </div>
+
+                <p className="text-xs leading-6 text-slate-400">
+                  Manage your website and business information from one place.
+                </p>
+              </div>
+            </div>
+          </aside>
+        </>
       )}
 
-      {/* Main Content */}
-      <main
-        className={`min-w-0 ${
-          isDashboard ? "flex-1 p-4 pb-24 md:p-8" : "min-h-screen w-full p-0"
-        }`}
-      >
+      {/* MAIN CONTENT */}
+
+      <main className="min-w-0 flex-1 p-4 md:p-8">
+        {/* TOP BAR */}
+
+        <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            {!sidebarOpen && (
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition hover:bg-slate-50"
+              >
+                <Menu size={20} />
+                <span className="text-sm font-semibold">Open Sidebar</span>
+              </button>
+            )}
+
+            <div>
+              <p className="text-xs font-semibold tracking-widest text-sky-600">
+                LEDORA ADMIN
+              </p>
+
+              <p className="text-sm text-slate-500">Management Workspace</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <Sparkles size={19} className="text-sky-500" />
+            <span className="text-sm font-semibold">Admin Dashboard</span>
+          </div>
+        </header>
+
+        {/* DASHBOARD */}
+
         {isDashboard ? (
           <div className="mx-auto max-w-7xl">
-            {/* Dashboard Header */}
-            <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold tracking-widest text-sky-600">
-                  ADMINISTRATION
-                </p>
+            {/* DASHBOARD INTRODUCTION */}
 
-                <h2 className="mt-2 text-3xl font-bold text-slate-900 md:text-4xl">
-                  Welcome to LEDORA
-                </h2>
+            <section className="mb-8">
+              <p className="text-sm font-semibold tracking-widest text-sky-600">
+                ADMINISTRATION
+              </p>
 
-                <p className="mt-2 text-sm text-slate-500 md:text-base">
-                  Manage your website and business from one dashboard.
-                </p>
-              </div>
+              <h2 className="mt-2 text-3xl font-bold text-slate-900 md:text-4xl">
+                Welcome to LEDORA
+              </h2>
 
-              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                <Sparkles size={19} className="text-sky-500" />
-                <span className="text-sm font-semibold">Admin Dashboard</span>
-              </div>
-            </header>
+              <p className="mt-2 text-sm text-slate-500 md:text-base">
+                Manage your website and business from one dashboard.
+              </p>
+            </section>
 
-            {/* Hero Section */}
+            {/* HERO */}
+
             <section className="relative mb-9 overflow-hidden rounded-3xl bg-slate-950 p-7 text-white shadow-sm md:p-10">
               <div className="relative z-10 max-w-2xl">
                 <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-4 py-2 text-sm text-sky-300">
@@ -233,7 +344,8 @@ export default function Mother() {
               <div className="pointer-events-none absolute -bottom-32 right-24 h-64 w-64 rounded-full bg-sky-400/10 blur-3xl" />
             </section>
 
-            {/* Management Modules */}
+            {/* MANAGEMENT MODULES */}
+
             <div className="mb-6">
               <h3 className="text-xl font-bold text-slate-900">
                 Management Modules
@@ -284,7 +396,8 @@ export default function Mother() {
               })}
             </div>
 
-            {/* Dashboard Footer */}
+            {/* FOOTER */}
+
             <footer className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-6 text-sm text-slate-500">
               <p>© {new Date().getFullYear()} LEDORA. All rights reserved.</p>
 
@@ -295,13 +408,16 @@ export default function Mother() {
             </footer>
           </div>
         ) : (
+          /* OTHER ADMIN PAGES */
+
           <div className="min-h-screen w-full">
             <Outlet />
           </div>
         )}
       </main>
 
-      {/* AI Assistant stays available on all admin pages */}
+      {/* AI ASSISTANT */}
+
       <AIAssistant />
     </div>
   );
