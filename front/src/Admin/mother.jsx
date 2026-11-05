@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 
 import {
@@ -29,12 +29,19 @@ export default function Mother() {
 
   const path = location.pathname;
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(path === "/admin");
   const [websiteExpanded, setWebsiteExpanded] = useState(
     path.startsWith("/admin/website"),
   );
 
   const isDashboard = path === "/admin";
+
+  // Close sidebar automatically when changing pages
+  useEffect(() => {
+    if (path !== "/admin") {
+      setSidebarOpen(false);
+    }
+  }, [path]);
 
   const menuItems = [
     {
@@ -117,15 +124,17 @@ export default function Mother() {
   };
 
   const handleNavigation = (item) => {
-    navigate(item.path);
-
     if (item.children) {
-      setWebsiteExpanded(!websiteExpanded);
+      setWebsiteExpanded((previous) => !previous);
+      navigate(item.path);
+      return;
     }
+
+    navigate(item.path);
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-100 text-slate-800">
+    <div className="flex min-h-screen w-full bg-slate-100 text-slate-800">
       {/* SIDEBAR */}
 
       {sidebarOpen && (
@@ -135,7 +144,7 @@ export default function Mother() {
             className="fixed inset-0 z-40 bg-black/40 md:hidden"
           />
 
-          <aside className="fixed inset-y-0 left-0 z-50 flex w-72 shrink-0 flex-col overflow-y-auto bg-slate-950 p-5 text-white shadow-xl md:sticky md:h-screen">
+          <aside className="fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-col overflow-y-auto bg-slate-950 p-5 text-white shadow-xl">
             {/* LOGO */}
 
             <div className="mb-10 flex items-center justify-between">
@@ -262,7 +271,7 @@ export default function Mother() {
 
       {/* MAIN CONTENT */}
 
-      <main className="min-w-0 flex-1 p-4 md:p-8">
+      <main className="min-w-0 w-full flex-1 p-4 md:p-8">
         {/* TOP BAR */}
 
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
