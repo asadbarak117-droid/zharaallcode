@@ -10,10 +10,11 @@ import {
   MessageCircle,
   Send,
   Video,
+  Play,
+  RefreshCw,
 } from "lucide-react";
 
 const API_URL = "https://zharaallcode.onrender.com/api/productsection";
-const VIDEOS_API_URL = `${API_URL}/videos`;
 
 const defaultCategories = [
   "Makeup",
@@ -73,7 +74,7 @@ function normalizeProduct(product, index) {
 
 function normalizeVideo(video, index) {
   return {
-    id: String(video._id || video.id || video.publicId || index),
+    id: String(video._id || video.id || video.publicId || `video-${index}`),
     title: video.title || video.name || "Beauty Video",
     description: video.description || "",
     url: video.url || video.videoUrl || video.secure_url || "",
@@ -103,6 +104,7 @@ function normalizeConfig(data) {
         : defaultCategories,
     products: Array.isArray(source.products) ? source.products : [],
     videos: Array.isArray(source.videos) ? source.videos : [],
+    comments: Array.isArray(source.comments) ? source.comments : [],
   };
 }
 
@@ -111,9 +113,7 @@ export default function Products() {
   const [products, setProducts] = useState([]);
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [videoLoading, setVideoLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [videoError, setVideoError] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Products");
@@ -123,6 +123,8 @@ export default function Products() {
   const [comments, setComments] = useState([]);
   const [commentName, setCommentName] = useState("");
   const [commentText, setCommentText] = useState("");
+
+  const [commentMessage, setCommentMessage] = useState("");
 
   const categories = useMemo(
     () => [
@@ -162,100 +164,60 @@ export default function Products() {
     [config.categories],
   );
 
-  useEffect(() => {
-    const controller = new AbortController();
+  // LOAD ALL PRODUCT SECTION DATA
+  const loadProductSection = async () => {
+    try {
+      setLoading(true);
+      setLoadError("");
 
-    async function loadProducts() {
-      try {
-        setLoading(true);
-        setLoadError("");
+      const response = await fetch(API_URL, {
+        method: "GET",
+        cache: "no-store",
+      });
 
-        const response = await fetch(API_URL, {
-          signal: controller.signal,
-          cache: "no-store",
-        });
-
-        if (!response.ok) {
-          throw new Error(`Request failed with status ${response.status}`);
-        }
-
-        const result = await response.json();
-        const data = normalizeConfig(result);
-
-        setConfig(data);
-        setProducts(data.products.map(normalizeProduct));
-
-        if (data.videos.length > 0) {
-          setVideos(
-            data.videos.map(normalizeVideo).filter((video) => video.url),
-          );
-        }
-      } catch (error) {
-        if (error.name !== "AbortError") {
-          console.error("Could not load product page:", error);
-          setLoadError(
-            "Could not load the latest products. Please check that the backend is running.",
-          );
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
+      if (!response.ok) {
+        throw new Error(`Request failed: ${response.status}`);
       }
+
+      const result = await response.json();
+      const data = normalizeConfig(result);
+
+      setConfig(data);
+
+      setProducts(
+        data.products.map((product, index) => normalizeProduct(product, index)),
+      );
+
+      setVideos(
+        data.videos
+          .map((video, index) => normalizeVideo(video, index))
+          .filter((video) => video.url),
+      );
+
+      setComments(
+        data.comments
+          .filter((comment) => comment.approved !== false)
+          .map((comment, index) => ({
+            id: String(comment._id || comment.id || index),
+            name: comment.name || "Customer",
+            text: comment.message || comment.text || "",
+            date: comment.createdAt
+              ? new Date(comment.createdAt).toLocaleDateString()
+              : "",
+          })),
+      );
+    } catch (error) {
+      console.error("Could not load product section:", error);
+      setLoadError(
+        "Could not load products and beauty videos. Please try again.",
+      );
+    } finally {
+      setLoading(false);
     }
-
-    loadProducts();
-
-    return () => controller.abort();
-  }, []);
+  };
 
   useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadVideos() {
-      try {
-        setVideoLoading(true);
-        setVideoError("");
-
-        const response = await fetch(VIDEOS_API_URL, {
-          signal: controller.signal,
-          cache: "no-store",
-        });
-
-        if (!response.ok) {
-          throw new Error(`Video request failed: ${response.status}`);
-        }
-
-        const result = await response.json();
-
-        const videoList = Array.isArray(result)
-          ? result
-          : Array.isArray(result?.videos)
-            ? result.videos
-            : Array.isArray(result?.data?.videos)
-              ? result.data.videos
-              : Array.isArray(result?.data)
-                ? result.data
-                : [];
-
-        setVideos(videoList.map(normalizeVideo).filter((video) => video.url));
-      } catch (error) {
-        if (error.name !== "AbortError") {
-          console.error("Could not load beauty videos:", error);
-          setVideoError(
-            "Beauty videos are temporarily unavailable. Please try again later.",
-          );
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setVideoLoading(false);
-        }
-      }
-    }
-
-    loadVideos();
-
-    return () => controller.abort();
+    loadProductSection();
   }, []);
 
   const filteredProducts = useMemo(() => {
@@ -307,7 +269,7 @@ export default function Products() {
 
     setComments((current) => [
       {
-        id: Date.now(),
+        id: Date.now().toString(),
         name: commentName.trim(),
         text: commentText.trim(),
         date: new Date().toLocaleDateString(),
@@ -317,11 +279,14 @@ export default function Products() {
 
     setCommentName("");
     setCommentText("");
+    setCommentMessage("Your comment was added to this page.");
   };
 
   return (
     <main className="min-h-screen bg-white px-4 py-10 text-slate-900 sm:px-6 lg:px-10">
       <div className="mx-auto max-w-7xl">
+        {/* PAGE HEADER */}
+
         <motion.header
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -341,6 +306,8 @@ export default function Products() {
             {config.pageDescription}
           </p>
         </motion.header>
+
+        {/* HERO */}
 
         <motion.section
           initial={{ opacity: 0, y: 25 }}
@@ -396,6 +363,8 @@ export default function Products() {
             </button>
           </div>
         </motion.section>
+
+        {/* CATEGORIES */}
 
         <section className="mb-16">
           <div className="mb-6">
@@ -459,42 +428,63 @@ export default function Products() {
           </div>
         </section>
 
-        {/* BEAUTY VIDEOS - CUSTOMER READ ONLY */}
+        {/* BEAUTY VIDEOS CARDS */}
 
-        <section className="mb-16">
-          <div className="mb-7">
-            <p className="text-sm font-bold uppercase tracking-widest text-sky-600">
-              Beauty Inspiration
-            </p>
+        <section className="mb-20" id="beauty-videos">
+          <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-widest text-sky-600">
+                Beauty Inspiration
+              </p>
 
-            <h2 className="mt-2 text-2xl font-bold md:text-3xl">
-              Beauty Videos
-            </h2>
+              <h2 className="mt-2 text-3xl font-bold md:text-4xl">
+                Beauty Videos
+              </h2>
 
-            <p className="mt-2 text-slate-500">
-              Explore tutorials, product demonstrations and beauty tips.
-            </p>
-          </div>
-
-          {videoLoading ? (
-            <div className="rounded-3xl bg-slate-50 px-6 py-14 text-center">
-              <Video size={35} className="mx-auto text-sky-500" />
-              <p className="mt-4 font-semibold text-slate-600">
-                Loading beauty videos...
+              <p className="mt-2 max-w-xl leading-7 text-slate-500">
+                Explore beauty tutorials, product demonstrations and skincare
+                inspiration.
               </p>
             </div>
-          ) : videos.length > 0 ? (
+
+            <div className="flex items-center gap-2 rounded-full bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700">
+              <Video size={17} />
+              {videos.length} Videos
+            </div>
+          </div>
+
+          {loading ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map((item) => (
+                <div
+                  key={item}
+                  className="animate-pulse overflow-hidden rounded-2xl border border-slate-200"
+                >
+                  <div className="aspect-video bg-slate-200" />
+                  <div className="space-y-3 p-5">
+                    <div className="h-5 w-3/4 rounded bg-slate-200" />
+                    <div className="h-4 w-full rounded bg-slate-100" />
+                    <div className="h-4 w-2/3 rounded bg-slate-100" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : videos.length > 0 ? (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {videos.map((video, index) => (
                 <motion.article
                   key={video.id}
-                  initial={{ opacity: 0, y: 15 }}
+                  initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: (index % 3) * 0.05 }}
-                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                  viewport={{ once: true, amount: 0.1 }}
+                  transition={{
+                    duration: 0.4,
+                    delay: (index % 3) * 0.06,
+                  }}
+                  whileHover={{ y: -5 }}
+                  className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-300 hover:shadow-xl hover:shadow-sky-100"
                 >
-                  <div className="relative aspect-video bg-black">
+                  <div className="relative aspect-video overflow-hidden bg-slate-950">
                     <video
                       src={video.url}
                       poster={video.thumbnail || undefined}
@@ -502,28 +492,49 @@ export default function Products() {
                       playsInline
                       preload="metadata"
                       className="h-full w-full object-contain"
+                      onError={(event) => {
+                        console.error(
+                          "Video playback error:",
+                          video.url,
+                          event,
+                        );
+                      }}
                     />
+
+                    <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-2 rounded-full bg-black/50 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
+                      <Play size={12} fill="currentColor" />
+                      LEDORA Video
+                    </div>
                   </div>
 
-                  <div className="p-4">
-                    <h3 className="font-bold text-slate-800">{video.title}</h3>
+                  <div className="p-5">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700">
+                        Beauty & Care
+                      </span>
 
-                    {video.description && (
+                      <Video size={18} className="shrink-0 text-sky-500" />
+                    </div>
+
+                    <h3 className="text-lg font-bold text-slate-800 transition group-hover:text-sky-700">
+                      {video.title}
+                    </h3>
+
+                    {video.description ? (
                       <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-500">
                         {video.description}
                       </p>
+                    ) : (
+                      <p className="mt-2 text-sm text-slate-400">
+                        Discover more from LEDORA Beauty.
+                      </p>
                     )}
-
-                    <p className="mt-3 flex items-center gap-2 text-xs font-medium text-sky-600">
-                      <Play size={14} />
-                      LEDORA Beauty Video
-                    </p>
                   </div>
                 </motion.article>
               ))}
             </div>
           ) : (
-            <div className="rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center">
+            <div className="rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-16 text-center">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-100 text-sky-600">
                 <Video size={30} />
               </div>
@@ -533,16 +544,24 @@ export default function Products() {
               </h3>
 
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-                Our beauty tutorials and product demonstrations will appear here
+                Beauty tutorials and product demonstrations will appear here
                 when they are uploaded by LEDORA.
               </p>
 
-              {videoError && (
-                <p className="mt-3 text-sm text-amber-700">{videoError}</p>
+              {loadError && (
+                <button
+                  onClick={loadProductSection}
+                  className="mt-5 inline-flex items-center gap-2 rounded-full bg-sky-600 px-5 py-3 text-sm font-semibold text-white hover:bg-sky-700"
+                >
+                  <RefreshCw size={16} />
+                  Try Again
+                </button>
               )}
             </div>
           )}
         </section>
+
+        {/* PRODUCT SEARCH */}
 
         <section className="mb-8">
           <div className="mb-6">
@@ -643,6 +662,8 @@ export default function Products() {
           </div>
         </section>
 
+        {/* PRODUCTS GRID */}
+
         <section id="product-grid" className="scroll-mt-8">
           {loading ? (
             <div className="rounded-3xl bg-slate-50 px-6 py-16 text-center">
@@ -655,7 +676,7 @@ export default function Products() {
               <p className="font-semibold text-amber-800">{loadError}</p>
 
               <button
-                onClick={() => window.location.reload()}
+                onClick={loadProductSection}
                 className="mt-5 rounded-full bg-sky-600 px-6 py-3 font-semibold text-white hover:bg-sky-700"
               >
                 Try Again
@@ -779,6 +800,8 @@ export default function Products() {
           )}
         </section>
 
+        {/* CUSTOMER COMMENTS */}
+
         <section className="mt-20">
           <div className="mb-8 text-center">
             <p className="text-sm font-bold uppercase tracking-widest text-sky-600">
@@ -806,7 +829,6 @@ export default function Products() {
 
                 <div>
                   <h3 className="text-xl font-bold">Write a Comment</h3>
-
                   <p className="text-sm text-slate-500">
                     Tell us about your experience.
                   </p>
@@ -848,13 +870,18 @@ export default function Products() {
                 <Send size={18} />
                 Submit Comment
               </button>
+
+              {commentMessage && (
+                <p className="mt-3 text-center text-sm text-emerald-600">
+                  {commentMessage}
+                </p>
+              )}
             </form>
 
             <div className="rounded-3xl border border-slate-200 bg-white p-6 md:p-8">
               <div className="mb-6 flex items-center justify-between">
                 <div>
                   <h3 className="text-xl font-bold">Community Feedback</h3>
-
                   <p className="mt-1 text-sm text-slate-500">
                     {comments.length} comments
                   </p>
@@ -874,21 +901,19 @@ export default function Products() {
                       animate={{ opacity: 1, y: 0 }}
                       className="rounded-2xl bg-slate-50 p-5"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-sky-100 font-bold text-sky-700">
-                            {comment.name.charAt(0).toUpperCase()}
-                          </div>
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-sky-100 font-bold text-sky-700">
+                          {comment.name.charAt(0).toUpperCase()}
+                        </div>
 
-                          <div>
-                            <h4 className="font-bold text-slate-800">
-                              {comment.name}
-                            </h4>
+                        <div>
+                          <h4 className="font-bold text-slate-800">
+                            {comment.name}
+                          </h4>
 
-                            <p className="text-xs text-slate-400">
-                              {comment.date}
-                            </p>
-                          </div>
+                          <p className="text-xs text-slate-400">
+                            {comment.date}
+                          </p>
                         </div>
                       </div>
 
@@ -914,6 +939,8 @@ export default function Products() {
             </div>
           </div>
         </section>
+
+        {/* CONTACT SECTION */}
 
         <motion.section
           initial={{ opacity: 0, y: 20 }}

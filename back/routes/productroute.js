@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+
 const ProductSection = require("../moduls/productsection");
 
 const allowedFields = [
@@ -24,15 +25,18 @@ const validateArray = (value, fieldName) => {
   if (value !== undefined && !Array.isArray(value)) {
     return `${fieldName} must be an array.`;
   }
+
   return null;
 };
 
+// GET PRODUCT SECTION
 router.get("/", async (req, res) => {
   try {
-    let section = await ProductSection.findOne();
+    let section = await ProductSection.findOne().lean();
 
     if (!section) {
-      section = await ProductSection.create({});
+      const created = await ProductSection.create({});
+      section = created.toObject();
     }
 
     return res.status(200).json(section);
@@ -47,6 +51,7 @@ router.get("/", async (req, res) => {
   }
 });
 
+// SAVE PRODUCT SECTION
 router.put("/", async (req, res) => {
   try {
     if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
@@ -93,50 +98,64 @@ router.put("/", async (req, res) => {
       }
     }
 
+    // VALIDATE AND PREPARE VIDEOS
     if (updates.videos !== undefined) {
-      for (const video of updates.videos) {
-        if (
-          !video ||
-          typeof video !== "object" ||
-          typeof video.url !== "string" ||
-          !video.url.trim()
-        ) {
-          return res.status(400).json({
-            success: false,
-            message: "Every video must have a valid URL.",
-          });
+      updates.videos = updates.videos.map((video, index) => {
+        if (!video || typeof video !== "object" || Array.isArray(video)) {
+          throw new Error(`Invalid video at position ${index + 1}.`);
+        }
+
+        if (typeof video.url !== "string" || !video.url.trim()) {
+          throw new Error(`Video ${index + 1} must have a valid URL.`);
         }
 
         if (video.title !== undefined && typeof video.title !== "string") {
-          return res.status(400).json({
-            success: false,
-            message: "Video title must be text.",
-          });
+          throw new Error(`Video ${index + 1} title must be text.`);
         }
 
         if (
           video.description !== undefined &&
           typeof video.description !== "string"
         ) {
-          return res.status(400).json({
-            success: false,
-            message: "Video description must be text.",
-          });
+          throw new Error(`Video ${index + 1} description must be text.`);
         }
-      }
+
+        if (video.id !== undefined && typeof video.id !== "string") {
+          throw new Error(`Video ${index + 1} ID must be text.`);
+        }
+
+        if (
+          video.publicId !== undefined &&
+          typeof video.publicId !== "string"
+        ) {
+          throw new Error(`Video ${index + 1} publicId must be text.`);
+        }
+
+        return {
+          id: video.id || "",
+          title: video.title || "",
+          description: video.description || "",
+          url: video.url.trim(),
+          publicId: video.publicId || "",
+        };
+      });
     }
 
     let section = await ProductSection.findOne();
 
     if (!section) {
-      section = new ProductSection(updates);
-    } else {
-      Object.assign(section, updates);
+      section = new ProductSection();
+    }
+
+    // UPDATE ONLY FIELDS SENT BY FRONTEND
+    for (const [field, value] of Object.entries(updates)) {
+      section.set(field, value);
     }
 
     await section.save();
 
-    const savedSection = await ProductSection.findById(section._id);
+    // READ THE SAVED DATA AGAIN FROM DATABASE
+    const savedSection = await ProductSection.findById(section._id).lean();
 
     return res.status(200).json({
       success: true,
