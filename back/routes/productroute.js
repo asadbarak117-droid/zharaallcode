@@ -64,16 +64,15 @@ router.put("/", async (req, res) => {
       }
     }
 
-    if (updates.categories !== undefined) {
-      if (
-        !Array.isArray(updates.categories) ||
-        !updates.categories.every((item) => typeof item === "string")
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: "Categories must be an array of strings.",
-        });
-      }
+    if (
+      updates.categories !== undefined &&
+      (!Array.isArray(updates.categories) ||
+        !updates.categories.every((item) => typeof item === "string"))
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Categories must be an array of strings.",
+      });
     }
 
     const arrayFields = [
@@ -91,6 +90,39 @@ router.put("/", async (req, res) => {
           success: false,
           message: error,
         });
+      }
+    }
+
+    if (updates.videos !== undefined) {
+      for (const video of updates.videos) {
+        if (
+          !video ||
+          typeof video !== "object" ||
+          typeof video.url !== "string" ||
+          !video.url.trim()
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: "Every video must have a valid URL.",
+          });
+        }
+
+        if (video.title !== undefined && typeof video.title !== "string") {
+          return res.status(400).json({
+            success: false,
+            message: "Video title must be text.",
+          });
+        }
+
+        if (
+          video.description !== undefined &&
+          typeof video.description !== "string"
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: "Video description must be text.",
+          });
+        }
       }
     }
 

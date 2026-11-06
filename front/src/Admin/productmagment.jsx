@@ -25,6 +25,11 @@ import {
 } from "lucide-react";
 
 const API_URL = "https://zharaallcode.onrender.com/api/productsection";
+
+const CLOUDINARY_CLOUD_NAME = "YOUR_CLOUD_NAME";
+const CLOUDINARY_UPLOAD_PRESET = "YOUR_UPLOAD_PRESET";
+const CLOUDINARY_VIDEO_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`;
+
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
 const DEFAULT_CATEGORIES = [
@@ -466,6 +471,9 @@ export default function ProductManagement() {
   const [videoForm, setVideoForm] = useState(emptyVideo);
   const [commentForm, setCommentForm] = useState(emptyComment);
 
+  const [videoFiles, setVideoFiles] = useState([]);
+  const [videoUploading, setVideoUploading] = useState(false);
+
   const [editingId, setEditingId] = useState(null);
   const [editingVideoId, setEditingVideoId] = useState(null);
   const [editingCommentId, setEditingCommentId] = useState(null);
@@ -585,8 +593,6 @@ export default function ProductManagement() {
         );
       }
 
-      // Only replace local state if the server actually returned config data.
-      // Some APIs return only { message: "Updated successfully" }.
       const returnedConfig = data?.data ?? data?.content ?? data;
 
       if (
@@ -792,6 +798,7 @@ export default function ProductManagement() {
   function openAddVideo() {
     setEditingVideoId(null);
     setVideoForm(emptyVideo);
+    setVideoFiles([]);
     setShowVideoForm(true);
   }
 
@@ -804,73 +811,152 @@ export default function ProductManagement() {
       url: video.url ?? "",
     });
 
+    setVideoFiles([]);
     setShowVideoForm(true);
   }
 
-  function saveVideo(event) {
+  async function uploadVideoToCloudinary(file) {
+    if (
+      CLOUDINARY_CLOUD_NAME === "YOUR_CLOUD_NAME" ||
+      CLOUDINARY_UPLOAD_PRESET === "YOUR_UPLOAD_PRESET"
+    ) {
+      throw new Error(
+        "Please enter your Cloudinary Cloud Name and Upload Preset in the code.",
+      );
+    }
+
+    const formData = new FormData();
+
+    formData.append("file", file);
+    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+    formData.append("resource_type", "video");
+
+    const response = await fetch(CLOUDINARY_VIDEO_URL, {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error?.message || "Video upload failed.");
+    }
+
+    if (!data.secure_url) {
+      throw new Error("Cloudinary did not return a video URL.");
+    }
+
+    return {
+      url: data.secure_url,
+      publicId: data.public_id || "",
+    };
+  }
+
+  async function saveVideo(event) {
     event.preventDefault();
 
-    if (!videoForm.title.trim()) {
+    if (videoUploading) return;
+
+    if (!videoForm.title.trim() && videoFiles.length === 0) {
       return notify("Video title is required.", "error");
     }
 
-    if (!videoForm.url.trim()) {
-      return notify("Video URL is required.", "error");
+    if (!videoForm.url.trim() && videoFiles.length === 0) {
+      return notify("Select a video from your device or enter a URL.", "error");
     }
 
     try {
-      const url = new URL(videoForm.url.trim());
+      setVideoUploading(true);
+      setMessage("");
 
-      if (!["http:", "https:"].includes(url.protocol)) {
-        throw new Error();
-      }
-    } catch {
-      return notify("Enter a valid video URL.", "error");
-    }
+      let newVideos = [];
 
-    const video = {
-      ...videoForm,
-      title: videoForm.title.trim(),
-      description: videoForm.description.trim(),
-      url: videoForm.url.trim(),
-    };
+      if (videoFiles.length > 0) {
+        for (let index = 0; index < videoFiles.length; index++) {
+          const file = videoFiles[index];
 
-    setConfig((current) => {
-      const videos = [...current.videos];
+          if (!file.type.startsWith("video/")) {
+            throw new Error(`${file.name} is not a video file.`);
+          }
 
-      if (editingVideoId !== null) {
-        const index = videos.findIndex(
-          (item) => getItemId(item) === editingVideoId,
-        );
+          const uploaded = await uploadVideoToCloudinary(file);
+          const defaultTitle = file.name.replace(/\.[^/.]+$/, "");
 
-        if (index !== -1) {
-          videos[index] = {
-            ...videos[index],
-            ...video,
-          };
-        } else {
-          videos.push({
-            ...video,
+          newVideos.push({
             id: createId("video"),
+            title:
+              videoFiles.length > 1
+                ? `${videoForm.title.trim() || defaultTitle} ${index + 1}`
+                : videoForm.title.trim() || defaultTitle,
+            description: videoForm.description.trim(),
+            url: uploaded.url,
+            publicId: uploaded.publicId,
+            originalFileName: file.name,
           });
         }
       } else {
-        videos.push({
-          ...video,
-          id: createId("video"),
+        let url;
+
+        try {
+          const parsedUrl = new URL(videoForm.url.trim());
+
+          if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+            throw new Error();
+          }
+
+          url = parsedUrl.href;
+        } catch {
+          throw new Error("Enter a valid video URL.");
+        }
+
+        newVideos.push({
+          id: editingVideoId || createId("video"),
+          title: videoForm.title.trim(),
+          description: videoForm.description.trim(),
+          url,
         });
       }
 
-      return {
-        ...current,
-        videos,
-      };
-    });
+      setConfig((current) => {
+        const videos = [...current.videos];
 
-    setShowVideoForm(false);
-    setEditingVideoId(null);
+        if (editingVideoId !== null && videoFiles.length === 0) {
+          const index = videos.findIndex(
+            (item) => getItemId(item) === editingVideoId,
+          );
 
-    notify("Video updated. Click Save Changes.", "info");
+          if (index !== -1) {
+            videos[index] = {
+              ...videos[index],
+              ...newVideos[0],
+              id: videos[index].id || editingVideoId,
+            };
+          }
+        } else {
+          videos.push(...newVideos);
+        }
+
+        return {
+          ...current,
+          videos,
+        };
+      });
+
+      setShowVideoForm(false);
+      setEditingVideoId(null);
+      setVideoFiles([]);
+      setVideoForm(emptyVideo);
+
+      notify(
+        "Videos uploaded successfully. Now click Save Changes to save the video list.",
+        "success",
+      );
+    } catch (error) {
+      console.error("Video upload error:", error);
+      notify(error.message || "Could not upload videos.", "error");
+    } finally {
+      setVideoUploading(false);
+    }
   }
 
   function deleteVideo(video) {
@@ -883,7 +969,10 @@ export default function ProductManagement() {
       videos: current.videos.filter((item) => getItemId(item) !== id),
     }));
 
-    notify("Video deleted. Click Save Changes.", "info");
+    notify(
+      "Video removed from the list. Click Save Changes to update the website.",
+      "info",
+    );
   }
 
   // COMMENTS
@@ -1005,6 +1094,7 @@ export default function ProductManagement() {
     setEditingId(null);
     setEditingVideoId(null);
     setEditingCommentId(null);
+    setVideoFiles([]);
 
     notify("Default settings loaded. Click Save Changes.", "info");
   }
@@ -1113,25 +1203,46 @@ export default function ProductManagement() {
         </section>
 
         {config.videos.length > 0 && (
-          <section className="bg-slate-50 px-6 py-12">
+          <section className="bg-slate-50 px-6 py-16">
             <div className="mx-auto max-w-7xl">
-              <h2 className="text-3xl font-bold">Beauty Videos</h2>
+              <div className="mb-9 text-center">
+                <span className="text-sm font-semibold uppercase tracking-widest text-sky-600">
+                  Beauty Inspiration
+                </span>
 
-              <div className="mt-7 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <h2 className="mt-3 text-3xl font-bold text-slate-900">
+                  Beauty Videos
+                </h2>
+
+                <p className="mt-3 text-slate-500">
+                  Explore tutorials, beauty tips, and product guides.
+                </p>
+              </div>
+
+              <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
                 {config.videos.map((video, index) => (
                   <article
                     key={getItemId(video) || index}
-                    className="overflow-hidden rounded-2xl border bg-white"
+                    className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
                   >
                     <video
                       src={video.url}
                       controls
-                      className="aspect-video w-full bg-black"
+                      preload="metadata"
+                      playsInline
+                      className="aspect-video w-full bg-black object-cover"
                     />
 
-                    <div className="p-4">
-                      <h3 className="font-bold">{video.title}</h3>
-                      <p className="mt-2 text-sm text-slate-500">
+                    <div className="p-5">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-sky-600">
+                        Beauty Video
+                      </span>
+
+                      <h3 className="mt-2 text-lg font-bold text-slate-900">
+                        {video.title}
+                      </h3>
+
+                      <p className="mt-2 text-sm leading-6 text-slate-500">
                         {video.description}
                       </p>
                     </div>
@@ -1289,8 +1400,6 @@ export default function ProductManagement() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 md:flex">
-      {/* SIDEBAR */}
-
       <aside className="bg-slate-950 p-5 text-white md:min-h-screen md:w-72 md:shrink-0">
         <div className="mb-8 flex items-center gap-3">
           <div className="rounded-xl bg-sky-400 p-2 text-slate-950">
@@ -1340,8 +1449,6 @@ export default function ProductManagement() {
         </div>
       </aside>
 
-      {/* MAIN CONTENT */}
-
       <main className="min-w-0 flex-1 p-4 md:p-8">
         <div className="mx-auto max-w-5xl">
           <header className="mb-7 flex flex-wrap items-center justify-between gap-4">
@@ -1372,7 +1479,7 @@ export default function ProductManagement() {
               <button
                 type="button"
                 onClick={save}
-                disabled={saving}
+                disabled={saving || videoUploading}
                 className={buttonClass}
               >
                 {saving ? (
@@ -1599,10 +1706,7 @@ export default function ProductManagement() {
                       label="Product name"
                       value={productForm.name}
                       onChange={(value) =>
-                        setProductForm((old) => ({
-                          ...old,
-                          name: value,
-                        }))
+                        setProductForm((old) => ({ ...old, name: value }))
                       }
                     />
 
@@ -1610,10 +1714,7 @@ export default function ProductManagement() {
                       label="Product code"
                       value={productForm.code}
                       onChange={(value) =>
-                        setProductForm((old) => ({
-                          ...old,
-                          code: value,
-                        }))
+                        setProductForm((old) => ({ ...old, code: value }))
                       }
                     />
 
@@ -1621,10 +1722,7 @@ export default function ProductManagement() {
                       label="Price"
                       value={productForm.price}
                       onChange={(value) =>
-                        setProductForm((old) => ({
-                          ...old,
-                          price: value,
-                        }))
+                        setProductForm((old) => ({ ...old, price: value }))
                       }
                     />
 
@@ -1632,10 +1730,7 @@ export default function ProductManagement() {
                       label="Badge"
                       value={productForm.badge}
                       onChange={(value) =>
-                        setProductForm((old) => ({
-                          ...old,
-                          badge: value,
-                        }))
+                        setProductForm((old) => ({ ...old, badge: value }))
                       }
                       placeholder="New, Featured..."
                     />
@@ -1672,10 +1767,7 @@ export default function ProductManagement() {
                     label="Product image"
                     value={productForm.image}
                     onChange={(value) =>
-                      setProductForm((old) => ({
-                        ...old,
-                        image: value,
-                      }))
+                      setProductForm((old) => ({ ...old, image: value }))
                     }
                   />
 
@@ -1819,7 +1911,7 @@ export default function ProductManagement() {
             </section>
           )}
 
-          {/* VIDEOS */}
+          {/* BEAUTY VIDEOS */}
 
           {activeTab === "videos" && (
             <section className="space-y-5">
@@ -1827,7 +1919,10 @@ export default function ProductManagement() {
                 <div>
                   <h3 className="text-lg font-bold">Beauty Videos</h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    Add tutorials, beauty tips, and product videos.
+                    Upload and manage multiple beauty videos from your device.
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-sky-600">
+                    {config.videos.length} videos in your gallery
                   </p>
                 </div>
 
@@ -1837,7 +1932,7 @@ export default function ProductManagement() {
                   className={buttonClass}
                 >
                   <Plus size={17} />
-                  Add Video
+                  Add Videos
                 </button>
               </div>
 
@@ -1847,13 +1942,25 @@ export default function ProductManagement() {
                   className={`${cardClass} space-y-5 border-sky-200`}
                 >
                   <div className="flex items-center justify-between">
-                    <h3 className="font-bold">
-                      {editingVideoId === null ? "Add Video" : "Edit Video"}
-                    </h3>
+                    <div>
+                      <h3 className="text-lg font-bold">
+                        {editingVideoId === null
+                          ? "Add Beauty Videos"
+                          : "Edit Video"}
+                      </h3>
+
+                      <p className="mt-1 text-sm text-slate-500">
+                        Choose one or multiple videos from your computer.
+                      </p>
+                    </div>
 
                     <button
                       type="button"
-                      onClick={() => setShowVideoForm(false)}
+                      disabled={videoUploading}
+                      onClick={() => {
+                        setShowVideoForm(false);
+                        setVideoFiles([]);
+                      }}
                       className="rounded-lg p-2 hover:bg-slate-100"
                     >
                       <X size={18} />
@@ -1869,6 +1976,7 @@ export default function ProductManagement() {
                         title: value,
                       }))
                     }
+                    placeholder="Example: Daily Beauty Routine"
                   />
 
                   <Field
@@ -1881,89 +1989,248 @@ export default function ProductManagement() {
                       }))
                     }
                     multiline
+                    placeholder="Write a description for your videos..."
                   />
 
-                  <Field
-                    label="Video URL"
-                    value={videoForm.url}
-                    onChange={(value) =>
-                      setVideoForm((old) => ({
-                        ...old,
-                        url: value,
-                      }))
-                    }
-                    placeholder="https://example.com/video.mp4"
-                  />
+                  <div className="rounded-2xl border-2 border-dashed border-sky-300 bg-sky-50 p-6">
+                    <div className="text-center">
+                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-sky-600 shadow-sm">
+                        <Video size={28} />
+                      </div>
 
-                  {videoForm.url && (
-                    <video
-                      src={videoForm.url}
-                      controls
-                      className="aspect-video w-full rounded-xl bg-black"
-                    />
+                      <h4 className="mt-3 font-bold text-slate-800">
+                        Upload Videos From Your Device
+                      </h4>
+
+                      <p className="mt-2 text-sm text-slate-500">
+                        Select MP4, MOV, WebM, or other supported video formats.
+                      </p>
+
+                      <label className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-sky-500 px-5 py-3 text-sm font-semibold text-white hover:bg-sky-600">
+                        <Plus size={18} />
+                        Choose Videos
+                        <input
+                          type="file"
+                          accept="video/*"
+                          multiple
+                          disabled={videoUploading}
+                          onChange={(event) => {
+                            const files = Array.from(event.target.files || []);
+
+                            setVideoFiles((current) => [...current, ...files]);
+
+                            event.target.value = "";
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {videoFiles.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-semibold text-slate-700">
+                          Selected Videos
+                        </h4>
+
+                        <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-700">
+                          {videoFiles.length} Videos
+                        </span>
+                      </div>
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {videoFiles.map((file, index) => (
+                          <div
+                            key={`${file.name}-${file.size}-${index}`}
+                            className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"
+                          >
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
+                              <Video size={23} />
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold">
+                                {file.name}
+                              </p>
+
+                              <p className="text-xs text-slate-500">
+                                {(file.size / (1024 * 1024)).toFixed(2)} MB
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={videoUploading}
+                              onClick={() =>
+                                setVideoFiles((current) =>
+                                  current.filter((_, i) => i !== index),
+                                )
+                              }
+                              className="rounded-lg p-2 text-red-500 hover:bg-red-50"
+                            >
+                              <X size={17} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
 
-                  <button type="submit" className={buttonClass}>
-                    <Check size={17} />
-                    Save Video
-                  </button>
+                  {videoFiles.length === 0 && videoForm.url && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-slate-600">
+                        Current video
+                      </p>
+
+                      <video
+                        src={videoForm.url}
+                        controls
+                        className="aspect-video w-full rounded-xl bg-black"
+                      />
+                    </div>
+                  )}
+
+                  <div className="border-t border-slate-100 pt-4">
+                    <p className="mb-3 text-sm text-slate-500">
+                      Or use an existing video URL:
+                    </p>
+
+                    <Field
+                      label="Video URL"
+                      value={videoForm.url}
+                      onChange={(value) =>
+                        setVideoForm((old) => ({
+                          ...old,
+                          url: value,
+                        }))
+                      }
+                      placeholder="https://example.com/video.mp4"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="submit"
+                      disabled={videoUploading}
+                      className={buttonClass}
+                    >
+                      {videoUploading ? (
+                        <>
+                          <LoaderCircle size={17} className="animate-spin" />
+                          Uploading Videos...
+                        </>
+                      ) : (
+                        <>
+                          <Check size={17} />
+                          {editingVideoId === null
+                            ? "Upload and Add Videos"
+                            : "Save Video"}
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={videoUploading}
+                      onClick={() => {
+                        setShowVideoForm(false);
+                        setVideoFiles([]);
+                      }}
+                      className={secondaryButtonClass}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+
+                  {videoUploading && (
+                    <p className="rounded-xl bg-sky-50 p-3 text-sm text-sky-700">
+                      Please wait. Your videos are being uploaded. Do not close
+                      this page.
+                    </p>
+                  )}
                 </form>
               )}
 
-              {config.videos.map((video, index) => (
-                <article
-                  key={getItemId(video) || index}
-                  className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 md:flex-row"
-                >
-                  <video
-                    src={video.url}
-                    controls
-                    className="aspect-video w-full rounded-xl bg-black md:w-56"
-                  />
-
-                  <div className="min-w-0 flex-1">
-                    <h4 className="font-bold">{video.title}</h4>
-
-                    <p className="mt-2 text-sm text-slate-500">
-                      {video.description}
-                    </p>
-
-                    <a
-                      href={video.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-3 inline-flex items-center gap-2 text-sm text-sky-600"
+              {config.videos.length > 0 ? (
+                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                  {config.videos.map((video, index) => (
+                    <article
+                      key={getItemId(video) || index}
+                      className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-lg"
                     >
-                      Open video <ExternalLink size={14} />
-                    </a>
+                      <video
+                        src={video.url}
+                        controls
+                        preload="metadata"
+                        playsInline
+                        className="aspect-video w-full bg-black object-contain"
+                      />
 
-                    <div className="mt-4 flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openEditVideo(video)}
-                        className={secondaryButtonClass}
-                      >
-                        <Pencil size={16} />
-                        Edit
-                      </button>
+                      <div className="space-y-3 p-5">
+                        <div className="flex items-center justify-between">
+                          <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+                            Beauty Video
+                          </span>
 
-                      <button
-                        type="button"
-                        onClick={() => deleteVideo(video)}
-                        className="rounded-xl border border-red-100 px-4 py-3 text-sm font-semibold text-red-600"
-                      >
-                        <Trash2 size={16} className="mr-2 inline" />
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              ))}
+                          <span className="text-xs text-slate-400">
+                            #{index + 1}
+                          </span>
+                        </div>
 
-              {config.videos.length === 0 && (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
-                  <Video size={30} className="mx-auto mb-3" />
-                  No videos yet. Add your first video.
+                        <h4 className="font-bold text-slate-800">
+                          {video.title}
+                        </h4>
+
+                        <p className="min-h-12 text-sm leading-6 text-slate-500">
+                          {video.description || "No description available."}
+                        </p>
+
+                        <a
+                          href={video.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 text-sm text-sky-600"
+                        >
+                          Open video <ExternalLink size={14} />
+                        </a>
+
+                        <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+                          <span className="text-xs text-slate-400">
+                            Video {index + 1}
+                          </span>
+
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openEditVideo(video)}
+                              className="rounded-lg border border-slate-200 p-2.5 text-slate-600"
+                            >
+                              <Pencil size={17} />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => deleteVideo(video)}
+                              className="rounded-lg border border-red-100 p-2.5 text-red-500"
+                            >
+                              <Trash2 size={17} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
+                  <Video size={36} className="mx-auto mb-3" />
+                  <h4 className="font-semibold text-slate-700">
+                    No Beauty Videos Yet
+                  </h4>
+                  <p className="mt-2 text-sm">
+                    Click Add Videos to upload your first videos.
+                  </p>
                 </div>
               )}
             </section>
@@ -2051,10 +2318,7 @@ export default function ProductManagement() {
                     label="Customer name"
                     value={commentForm.name}
                     onChange={(value) =>
-                      setCommentForm((old) => ({
-                        ...old,
-                        name: value,
-                      }))
+                      setCommentForm((old) => ({ ...old, name: value }))
                     }
                   />
 
@@ -2062,10 +2326,7 @@ export default function ProductManagement() {
                     label="Comment"
                     value={commentForm.message}
                     onChange={(value) =>
-                      setCommentForm((old) => ({
-                        ...old,
-                        message: value,
-                      }))
+                      setCommentForm((old) => ({ ...old, message: value }))
                     }
                     multiline
                   />
@@ -2470,7 +2731,7 @@ export default function ProductManagement() {
             <button
               type="button"
               onClick={resetSettings}
-              disabled={saving}
+              disabled={saving || videoUploading}
               className={secondaryButtonClass}
             >
               <RotateCcw size={16} />
@@ -2480,7 +2741,7 @@ export default function ProductManagement() {
             <button
               type="button"
               onClick={save}
-              disabled={saving}
+              disabled={saving || videoUploading}
               className={buttonClass}
             >
               {saving ? (
@@ -2497,8 +2758,7 @@ export default function ProductManagement() {
             Settings are sent to your existing productsection API. Your backend
             schema must support videos, comments, categoryDetails,
             searchSection, contactSection, commentsSection, and categoryDesign
-            for them to be stored permanently. Your public Products page must
-            also read these fields to display the changes.
+            for them to be stored permanently.
           </p>
         </div>
       </main>
