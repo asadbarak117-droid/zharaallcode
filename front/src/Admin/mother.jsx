@@ -17,8 +17,12 @@ import {
   MessageCircle,
   Menu,
   X,
-  ChevronDown,
   ChevronRight,
+  Settings,
+  BarChart3,
+  UserCog,
+  FolderOpen,
+  Palette,
 } from "lucide-react";
 
 import AIAssistant from "./AIAssistant";
@@ -26,73 +30,180 @@ import AIAssistant from "./AIAssistant";
 export default function Mother() {
   const navigate = useNavigate();
   const location = useLocation();
-
   const path = location.pathname;
-
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-
-  const [websiteExpanded, setWebsiteExpanded] = useState(
-    path.startsWith("/admin/website"),
-  );
 
   const isDashboard = path === "/admin";
 
-  // Close sidebar whenever the page changes
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [path]);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // Automatically expand Website Management
   useEffect(() => {
+    setSidebarOpen(isDashboard);
+  }, [path, isDashboard]);
+
+  const sidebarMenus = {
+    dashboard: [
+      {
+        title: "Dashboard",
+        icon: LayoutDashboard,
+        path: "/admin",
+      },
+      {
+        title: "Website Management",
+        icon: Globe,
+        path: "/admin/website",
+      },
+      {
+        title: "Database",
+        icon: Database,
+        path: "/admin/database",
+      },
+      {
+        title: "User Management",
+        icon: Users,
+        path: "/admin/users",
+      },
+    ],
+
+    website: [
+      {
+        title: "Website Overview",
+        icon: Globe,
+        path: "/admin/website",
+      },
+      {
+        title: "Home Management",
+        icon: Home,
+        path: "/admin/website/home",
+      },
+      {
+        title: "Product Management",
+        icon: Package,
+        path: "/admin/website/product",
+      },
+      {
+        title: "Header Management",
+        icon: Image,
+        path: "/admin/website/header",
+      },
+      {
+        title: "Consultation",
+        icon: MessageCircle,
+        path: "/admin/website/consultation",
+      },
+      {
+        title: "Website Design",
+        icon: Palette,
+        path: "/admin/website/design",
+      },
+    ],
+
+    database: [
+      {
+        title: "Database Overview",
+        icon: Database,
+        path: "/admin/database",
+      },
+      {
+        title: "Products Database",
+        icon: Package,
+        path: "/admin/database/products",
+      },
+      {
+        title: "Business Records",
+        icon: FolderOpen,
+        path: "/admin/database/records",
+      },
+      {
+        title: "Reports",
+        icon: BarChart3,
+        path: "/admin/database/reports",
+      },
+      {
+        title: "Database Settings",
+        icon: Settings,
+        path: "/admin/database/settings",
+      },
+    ],
+
+    users: [
+      {
+        title: "User Overview",
+        icon: Users,
+        path: "/admin/users",
+      },
+      {
+        title: "Manage Users",
+        icon: UserCog,
+        path: "/admin/users/manage",
+      },
+      {
+        title: "Permissions",
+        icon: ShieldCheck,
+        path: "/admin/users/permissions",
+      },
+      {
+        title: "User Reports",
+        icon: BarChart3,
+        path: "/admin/users/reports",
+      },
+      {
+        title: "Settings",
+        icon: Settings,
+        path: "/admin/users/settings",
+      },
+    ],
+  };
+
+  const getCurrentMenu = () => {
     if (path.startsWith("/admin/website")) {
-      setWebsiteExpanded(true);
+      return {
+        title: "Website Management",
+        subtitle: "Website Workspace",
+        icon: Globe,
+        items: sidebarMenus.website,
+      };
     }
-  }, [path]);
 
-  const menuItems = [
-    {
-      title: "Website Management",
-      icon: Globe,
-      path: "/admin/website",
-      children: [
-        {
-          title: "Home Management",
-          icon: Home,
-          path: "/admin/website/home",
-        },
-        {
-          title: "Product Management",
-          icon: Package,
-          path: "/admin/website/product",
-        },
-        {
-          title: "Header Management",
-          icon: Image,
-          path: "/admin/website/header",
-        },
-        {
-          title: "Consultation",
-          icon: MessageCircle,
-          path: "/admin/website/consultation",
-        },
-      ],
-    },
-    {
-      title: "Database",
-      icon: Database,
-      path: "/admin/database",
-    },
-    {
-      title: "User Management",
-      icon: Users,
-      path: "/admin/users",
-    },
-    {
-      title: "Dashboard",
-      icon: LayoutDashboard,
-      path: "/admin",
-    },
-  ];
+    if (path.startsWith("/admin/database")) {
+      return {
+        title: "Database Management",
+        subtitle: "Database Workspace",
+        icon: Database,
+        items: sidebarMenus.database,
+      };
+    }
+
+    if (path.startsWith("/admin/users")) {
+      return {
+        title: "User Management",
+        subtitle: "User Workspace",
+        icon: Users,
+        items: sidebarMenus.users,
+      };
+    }
+
+    return {
+      title: "LEDORA ADMIN",
+      subtitle: "Management Dashboard",
+      icon: ShoppingBag,
+      items: sidebarMenus.dashboard,
+    };
+  };
+
+  const currentMenu = getCurrentMenu();
+  const CurrentIcon = currentMenu.icon;
+
+  const isActive = (itemPath) => {
+    if (itemPath === "/admin") {
+      return path === "/admin";
+    }
+
+    return path === itemPath || path.startsWith(itemPath + "/");
+  };
+
+  const handleNavigation = (targetPath) => {
+    navigate(targetPath);
+  };
 
   const modules = [
     {
@@ -121,32 +232,6 @@ export default function Mother() {
     },
   ];
 
-  const isActive = (itemPath) => {
-    if (itemPath === "/admin") {
-      return path === "/admin";
-    }
-
-    return path === itemPath || path.startsWith(itemPath + "/");
-  };
-
-  const handleNavigation = (item) => {
-    if (item.children) {
-      setWebsiteExpanded((previous) => !previous);
-
-      if (!path.startsWith(item.path)) {
-        navigate(item.path);
-      }
-
-      return;
-    }
-
-    navigate(item.path);
-  };
-
-  const navigateTo = (targetPath) => {
-    navigate(targetPath);
-  };
-
   return (
     <div className="flex min-h-screen w-full bg-slate-100 text-slate-800">
       {/* MOBILE OVERLAY */}
@@ -158,51 +243,70 @@ export default function Mother() {
         />
       )}
 
-      {/* SIDEBAR */}
+      {/* SINGLE SHARED SIDEBAR */}
 
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-72 shrink-0 flex-col overflow-y-auto bg-slate-950 p-5 text-white shadow-xl transition-transform duration-300 md:sticky md:top-0 md:z-30 md:shadow-none ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        {/* LOGO */}
+      {sidebarOpen && (
+        <aside
+          className="
+            fixed inset-y-0 left-0 z-50
+            flex h-screen w-72 shrink-0 flex-col
+            overflow-y-auto bg-slate-950 p-5 text-white
+            shadow-xl transition-all duration-300
+            md:sticky md:top-0 md:z-30 md:shadow-none
+          "
+        >
+          {/* LOGO */}
 
-        <div className="mb-10 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-sky-400 p-2.5 text-slate-950">
-              <ShoppingBag size={25} />
+          <div className="mb-10 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-sky-400 p-2.5 text-slate-950">
+                <ShoppingBag size={25} />
+              </div>
+
+              <div>
+                <h1 className="text-lg font-bold tracking-wide">
+                  LEDORA ADMIN
+                </h1>
+
+                <p className="text-xs text-slate-400">{currentMenu.subtitle}</p>
+              </div>
             </div>
 
-            <div>
-              <h1 className="text-lg font-bold tracking-wide">LEDORA ADMIN</h1>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="rounded-lg p-2 text-slate-300 transition hover:bg-slate-800 hover:text-white"
+            >
+              <X size={21} />
+            </button>
+          </div>
 
-              <p className="text-xs text-slate-400">Management Dashboard</p>
+          {/* CURRENT SECTION */}
+
+          <div className="mb-5 flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900 p-3">
+            <CurrentIcon size={21} className="text-sky-400" />
+
+            <div>
+              <p className="text-sm font-semibold">{currentMenu.title}</p>
+
+              <p className="text-xs text-slate-400">Current Workspace</p>
             </div>
           </div>
 
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="rounded-lg p-2 text-slate-300 transition hover:bg-slate-800 hover:text-white"
-          >
-            <X size={21} />
-          </button>
-        </div>
+          {/* NAVIGATION */}
 
-        {/* MAIN MENU */}
+          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-slate-500">
+            Navigation
+          </p>
 
-        <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-slate-500">
-          Main Management
-        </p>
+          <nav className="space-y-2">
+            {currentMenu.items.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.path);
 
-        <nav className="space-y-2">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.path);
-
-            return (
-              <div key={item.path}>
+              return (
                 <button
-                  onClick={() => handleNavigation(item)}
+                  key={item.path}
+                  onClick={() => handleNavigation(item.path)}
                   className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm transition ${
                     active
                       ? "bg-sky-400 font-semibold text-slate-950"
@@ -214,76 +318,60 @@ export default function Mother() {
                     {item.title}
                   </span>
 
-                  {item.children &&
-                    (websiteExpanded ? (
-                      <ChevronDown size={17} />
-                    ) : (
-                      <ChevronRight size={17} />
-                    ))}
+                  <ChevronRight size={17} />
                 </button>
+              );
+            })}
+          </nav>
 
-                {/* WEBSITE SUBMENU */}
+          {/* BACK TO DASHBOARD */}
 
-                {item.children && websiteExpanded && (
-                  <div className="ml-5 mt-2 space-y-1 border-l border-slate-700 pl-4">
-                    {item.children.map((child) => {
-                      const ChildIcon = child.icon;
-                      const childActive = isActive(child.path);
+          {!isDashboard && (
+            <>
+              <div className="my-7 border-t border-slate-800" />
 
-                      return (
-                        <button
-                          key={child.path}
-                          onClick={() => navigateTo(child.path)}
-                          className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition ${
-                            childActive
-                              ? "bg-slate-800 font-semibold text-sky-400"
-                              : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                          }`}
-                        >
-                          <ChildIcon size={16} />
-                          {child.title}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+              <button
+                onClick={() => navigate("/admin")}
+                className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-slate-300 transition hover:bg-slate-800 hover:text-white"
+              >
+                <LayoutDashboard size={19} />
+                Back to Dashboard
+              </button>
+            </>
+          )}
+
+          {/* ACCOUNT */}
+
+          <div className="my-7 border-t border-slate-800" />
+
+          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+            Account
+          </p>
+
+          <button
+            onClick={() => navigate("/admin/logout")}
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-slate-300 transition hover:bg-red-500/10 hover:text-red-400"
+          >
+            <LogOut size={19} />
+            Sign Out
+          </button>
+
+          {/* SECURITY */}
+
+          <div className="mt-auto pt-8">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+              <div className="mb-2 flex items-center gap-2 text-sky-400">
+                <ShieldCheck size={18} />
+                <span className="text-sm font-semibold">Secure Admin</span>
               </div>
-            );
-          })}
-        </nav>
 
-        {/* ACCOUNT */}
-
-        <div className="my-7 border-t border-slate-800" />
-
-        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
-          Account
-        </p>
-
-        <button
-          onClick={() => navigateTo("/admin/logout")}
-          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-slate-300 transition hover:bg-red-500/10 hover:text-red-400"
-        >
-          <LogOut size={19} />
-          Sign Out
-        </button>
-
-        {/* SECURITY */}
-
-        <div className="mt-auto pt-8">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-            <div className="mb-2 flex items-center gap-2 text-sky-400">
-              <ShieldCheck size={18} />
-
-              <span className="text-sm font-semibold">Secure Admin</span>
+              <p className="text-xs leading-6 text-slate-400">
+                Manage your website and business information from one place.
+              </p>
             </div>
-
-            <p className="text-xs leading-6 text-slate-400">
-              Manage your website and business information from one place.
-            </p>
           </div>
-        </div>
-      </aside>
+        </aside>
+      )}
 
       {/* MAIN CONTENT */}
 
@@ -307,7 +395,7 @@ export default function Mother() {
                 LEDORA ADMIN
               </p>
 
-              <p className="text-sm text-slate-500">Management Workspace</p>
+              <p className="text-sm text-slate-500">{currentMenu.title}</p>
             </div>
           </div>
 
@@ -317,12 +405,10 @@ export default function Mother() {
           </div>
         </header>
 
-        {/* DASHBOARD */}
+        {/* MOTHER DASHBOARD */}
 
         {isDashboard ? (
           <div className="mx-auto max-w-7xl">
-            {/* DASHBOARD INTRODUCTION */}
-
             <section className="mb-8">
               <p className="text-sm font-semibold tracking-widest text-sky-600">
                 ADMINISTRATION
@@ -356,7 +442,7 @@ export default function Mother() {
                 </p>
 
                 <button
-                  onClick={() => navigateTo("/admin/website")}
+                  onClick={() => navigate("/admin/website")}
                   className="mt-7 inline-flex items-center gap-2 rounded-xl bg-sky-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-sky-300"
                 >
                   Manage Website
@@ -369,7 +455,7 @@ export default function Mother() {
               <div className="pointer-events-none absolute -bottom-32 right-24 h-64 w-64 rounded-full bg-sky-400/10 blur-3xl" />
             </section>
 
-            {/* MANAGEMENT MODULES */}
+            {/* MODULES */}
 
             <div className="mb-6">
               <h3 className="text-xl font-bold text-slate-900">
@@ -388,7 +474,7 @@ export default function Mother() {
                 return (
                   <button
                     key={module.path}
-                    onClick={() => navigateTo(module.path)}
+                    onClick={() => navigate(module.path)}
                     className="group relative flex min-h-72 flex-col rounded-3xl border border-slate-200 bg-white p-7 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:border-sky-200 hover:shadow-xl"
                   >
                     <div className="mb-7 flex w-full items-center justify-between">
@@ -433,9 +519,9 @@ export default function Mother() {
             </footer>
           </div>
         ) : (
-          /* OTHER ADMIN PAGES */
+          /* CHILD PAGES */
 
-          <div className="min-h-screen w-full">
+          <div className="min-h-screen w-full min-w-0">
             <Outlet />
           </div>
         )}
