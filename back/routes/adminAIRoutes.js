@@ -1,6 +1,7 @@
 const express = require("express");
 const rateLimit = require("express-rate-limit");
 
+const adminAuth = require("../middleware/adminAuth");
 const { adminAIChat } = require("../controllers/adminAIController");
 
 const router = express.Router();
@@ -16,6 +17,6 @@ const adminAILimiter = rateLimit({
   },
 });
 
-router.post("/chat", adminAILimiter, adminAIChat);
+router.post("/chat", adminAuth, adminAILimiter, adminAIChat);
 
 module.exports = router;
