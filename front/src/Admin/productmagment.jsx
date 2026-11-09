@@ -579,7 +579,22 @@ export default function ProductManagement() {
   async function saveConfigToServer(nextConfig) {
     const payload = {
       ...nextConfig,
-      videos: Array.isArray(nextConfig.videos) ? nextConfig.videos : [],
+      videos: Array.isArray(nextConfig.videos)
+        ? nextConfig.videos
+            .filter(
+              (video) =>
+                video &&
+                typeof video.url === "string" &&
+                video.url.trim() !== "",
+            )
+            .map((video) => ({
+              id: video.id || "",
+              title: video.title || "",
+              description: video.description || "",
+              url: video.url.trim(),
+              publicId: video.publicId || "",
+            }))
+        : [],
       products: Array.isArray(nextConfig.products) ? nextConfig.products : [],
       categories: Array.isArray(nextConfig.categories)
         ? nextConfig.categories
@@ -589,9 +604,6 @@ export default function ProductManagement() {
         ? nextConfig.categoryDetails
         : [],
     };
-
-    console.log("API URL:", API_URL);
-    console.log("VIDEOS SENT:", payload.videos);
 
     const response = await fetch(API_URL, {
       method: "PUT",
@@ -605,12 +617,9 @@ export default function ProductManagement() {
 
     const data = await readResponse(response);
 
-    console.log("PUT STATUS:", response.status);
-    console.log("PUT RESPONSE:", data);
-
     if (!response.ok) {
       throw new Error(
-        data.message || data.error || `Save failed: ${response.status}`,
+        data?.message || data?.error || `Save failed: ${response.status}`,
       );
     }
 
@@ -624,28 +633,23 @@ export default function ProductManagement() {
 
     const verifyData = await readResponse(verifyResponse);
 
-    console.log("GET STATUS:", verifyResponse.status);
-    console.log("GET RESPONSE:", verifyData);
-
     if (!verifyResponse.ok) {
       throw new Error("Could not verify saved settings.");
     }
 
     const verifiedConfig = normalizeConfig(verifyData);
 
-    console.log("VIDEOS AFTER SAVE:", verifiedConfig.videos);
-
-    const savedUrls = new Set(verifiedConfig.videos.map((video) => video.url));
+    const savedUrls = new Set(
+      verifiedConfig.videos.map((video) => video.url?.trim()).filter(Boolean),
+    );
 
     const missingVideos = payload.videos.filter(
       (video) => !savedUrls.has(video.url),
     );
 
     if (missingVideos.length > 0) {
-      console.error("MISSING VIDEOS:", missingVideos);
-
       throw new Error(
-        `${missingVideos.length} video(s) were not found in the database after saving.`,
+        `${missingVideos.length} video(s) could not be verified after saving. Please check the backend.`,
       );
     }
 

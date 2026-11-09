@@ -86,7 +86,15 @@ function normalizeVideo(video, index) {
 }
 
 function normalizeConfig(data) {
-  const source = data?.data ?? data?.content ?? data ?? {};
+  let source = data?.data ?? data?.content ?? data?.config ?? data;
+
+  if (source?.data && typeof source.data === "object") {
+    source = source.data;
+  }
+
+  if (!source || typeof source !== "object" || Array.isArray(source)) {
+    source = {};
+  }
 
   return {
     heroBadge: source.heroBadge ?? "Your Beauty, Your Confidence",
