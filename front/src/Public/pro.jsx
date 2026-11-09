@@ -10,8 +10,8 @@ import {
   MessageCircle,
   Send,
   Video,
-  Play,
   RefreshCw,
+  Play,
 } from "lucide-react";
 
 const API_URL = "https://zharaallcode.onrender.com/api/productsection";
@@ -70,18 +70,6 @@ function normalizeProduct(product, index) {
     description: item.description || "",
     price: item.price || "",
     badge: item.badge || "",
-  };
-}
-
-function normalizeVideo(video, index) {
-  const item = video && typeof video === "object" ? video : {};
-
-  return {
-    id: String(item._id || item.id || item.publicId || `video-${index}`),
-    title: item.title || item.name || `Beauty Video ${index + 1}`,
-    description: item.description || "",
-    url: String(item.url || item.videoUrl || item.secure_url || "").trim(),
-    thumbnail: item.thumbnail || item.thumbnailUrl || "",
   };
 }
 
@@ -148,12 +136,26 @@ function normalizeConfig(data) {
   };
 }
 
+function normalizeVideo(video, index) {
+  const item = video && typeof video === "object" ? video : {};
+
+  return {
+    id: String(item._id || item.id || item.publicId || `video-${index}`),
+    title: item.title || item.name || `Beauty Video ${index + 1}`,
+    description: item.description || "",
+    url: String(item.url || item.videoUrl || item.secure_url || "").trim(),
+    thumbnail: item.thumbnail || item.thumbnailUrl || "",
+  };
+}
+
 export default function Products() {
   const [config, setConfig] = useState(() => normalizeConfig({}));
   const [products, setProducts] = useState([]);
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [videoLoading, setVideoLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [videoError, setVideoError] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Products");
@@ -163,7 +165,6 @@ export default function Products() {
   const [comments, setComments] = useState([]);
   const [commentName, setCommentName] = useState("");
   const [commentText, setCommentText] = useState("");
-
   const [commentMessage, setCommentMessage] = useState("");
 
   const categories = useMemo(
@@ -215,14 +216,18 @@ export default function Products() {
     [config.categories, config.categoryDetails],
   );
 
-  // LOAD ALL PRODUCT SECTION DATA
   const loadProductSection = async () => {
     try {
       setLoading(true);
+      setVideoLoading(true);
       setLoadError("");
+      setVideoError("");
 
       const response = await fetch(API_URL, {
         method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
         cache: "no-store",
       });
 
@@ -239,11 +244,11 @@ export default function Products() {
         data.products.map((product, index) => normalizeProduct(product, index)),
       );
 
-      setVideos(
-        data.videos
-          .map((video, index) => normalizeVideo(video, index))
-          .filter((video) => video.url),
-      );
+      const normalizedVideos = data.videos
+        .map((video, index) => normalizeVideo(video, index))
+        .filter((video) => video.url);
+
+      setVideos(normalizedVideos);
 
       setComments(
         data.comments
@@ -262,8 +267,10 @@ export default function Products() {
       setLoadError(
         "Could not load products and beauty videos. Please try again.",
       );
+      setVideoError("Could not load videos. Please try again.");
     } finally {
       setLoading(false);
+      setVideoLoading(false);
     }
   };
 
@@ -336,8 +343,6 @@ export default function Products() {
   return (
     <main className="min-h-screen bg-white px-4 py-10 text-slate-900 sm:px-6 lg:px-10">
       <div className="mx-auto max-w-7xl">
-        {/* PAGE HEADER */}
-
         <motion.header
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -357,8 +362,6 @@ export default function Products() {
             {config.pageDescription}
           </p>
         </motion.header>
-
-        {/* HERO */}
 
         <motion.section
           initial={{ opacity: 0, y: 25 }}
@@ -414,8 +417,6 @@ export default function Products() {
             </button>
           </div>
         </motion.section>
-
-        {/* CATEGORIES */}
 
         <section className="mb-16">
           <div className="mb-6">
@@ -479,140 +480,140 @@ export default function Products() {
           </div>
         </section>
 
-        {/* BEAUTY VIDEOS CARDS */}
+        <section
+          className="relative mb-20 overflow-hidden rounded-[2rem] bg-slate-950 px-5 py-10 text-white sm:px-8 md:py-14"
+          id="beauty-videos"
+        >
+          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-sky-500/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
 
-        <section className="mb-20" id="beauty-videos">
-          <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="text-sm font-bold uppercase tracking-widest text-sky-600">
-                Beauty Inspiration
-              </p>
+          <div className="relative z-10">
+            <div className="mb-8 flex flex-wrap items-end justify-between gap-5">
+              <div>
+                <span className="inline-flex items-center gap-2 rounded-full border border-sky-300/20 bg-sky-300/10 px-4 py-2 text-xs font-bold uppercase tracking-widest text-sky-200">
+                  <Sparkles size={14} />
+                  Beauty Inspiration
+                </span>
 
-              <h2 className="mt-2 text-3xl font-bold md:text-4xl">
-                Beauty Videos
-              </h2>
+                <h2 className="mt-4 text-3xl font-bold sm:text-4xl">
+                  Beauty Videos
+                </h2>
 
-              <p className="mt-2 max-w-xl leading-7 text-slate-500">
-                Explore beauty tutorials, product demonstrations and skincare
-                inspiration.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 rounded-full bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700">
-              <Video size={17} />
-              {videos.length} Videos
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {[1, 2, 3].map((item) => (
-                <div
-                  key={item}
-                  className="animate-pulse overflow-hidden rounded-2xl border border-slate-200"
-                >
-                  <div className="aspect-video bg-slate-200" />
-                  <div className="space-y-3 p-5">
-                    <div className="h-5 w-3/4 rounded bg-slate-200" />
-                    <div className="h-4 w-full rounded bg-slate-100" />
-                    <div className="h-4 w-2/3 rounded bg-slate-100" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : videos.length > 0 ? (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {videos.map((video, index) => (
-                <motion.article
-                  key={`${video.id}-${index}`}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, amount: 0.1 }}
-                  transition={{
-                    duration: 0.4,
-                    delay: (index % 3) * 0.06,
-                  }}
-                  whileHover={{ y: -5 }}
-                  className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-300 hover:shadow-xl hover:shadow-sky-100"
-                >
-                  <div className="relative aspect-video overflow-hidden bg-slate-950">
-                    <video
-                      src={video.url}
-                      poster={video.thumbnail || undefined}
-                      controls
-                      playsInline
-                      preload="metadata"
-                      className="h-full w-full object-contain"
-                      onError={(event) => {
-                        console.error(
-                          "Video playback error:",
-                          video.url,
-                          event,
-                        );
-                      }}
-                    />
-
-                    <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-2 rounded-full bg-black/50 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
-                      <Play size={12} fill="currentColor" />
-                      LEDORA Video
-                    </div>
-                  </div>
-
-                  <div className="p-5">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700">
-                        Beauty & Care
-                      </span>
-
-                      <Video size={18} className="shrink-0 text-sky-500" />
-                    </div>
-
-                    <h3 className="text-lg font-bold text-slate-800 transition group-hover:text-sky-700">
-                      {video.title}
-                    </h3>
-
-                    {video.description ? (
-                      <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-500">
-                        {video.description}
-                      </p>
-                    ) : (
-                      <p className="mt-2 text-sm text-slate-400">
-                        Discover more from LEDORA Beauty.
-                      </p>
-                    )}
-                  </div>
-                </motion.article>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-16 text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-100 text-sky-600">
-                <Video size={30} />
+                <p className="mt-3 max-w-xl leading-7 text-slate-300">
+                  Tutorials, product demonstrations and beauty inspiration
+                  selected for you by LEDORA.
+                </p>
               </div>
 
-              <h3 className="mt-5 text-xl font-bold text-slate-800">
-                No Videos Yet
-              </h3>
+              <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-sky-100">
+                <Video size={17} />
+                {videos.length} Videos
+              </div>
+            </div>
 
-              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-                Beauty tutorials and product demonstrations will appear here
-                when they are uploaded by LEDORA.
-              </p>
-
-              {loadError && (
+            {videoLoading ? (
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3].map((item) => (
+                  <div
+                    key={item}
+                    className="overflow-hidden rounded-2xl border border-white/10 bg-white/5"
+                  >
+                    <div className="aspect-video animate-pulse bg-white/10" />
+                    <div className="space-y-3 p-5">
+                      <div className="h-5 w-3/4 animate-pulse rounded bg-white/10" />
+                      <div className="h-4 w-full animate-pulse rounded bg-white/10" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : videoError ? (
+              <div className="rounded-2xl border border-rose-300/20 bg-rose-300/10 px-6 py-12 text-center">
+                <Video size={34} className="mx-auto text-rose-200" />
+                <p className="mt-4 text-slate-200">{videoError}</p>
                 <button
                   onClick={loadProductSection}
-                  className="mt-5 inline-flex items-center gap-2 rounded-full bg-sky-600 px-5 py-3 text-sm font-semibold text-white hover:bg-sky-700"
+                  className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-bold text-slate-900 transition hover:bg-sky-100"
                 >
                   <RefreshCw size={16} />
                   Try Again
                 </button>
-              )}
-            </div>
-          )}
-        </section>
+              </div>
+            ) : videos.length > 0 ? (
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {videos.map((video) => (
+                  <motion.article
+                    key={video.id}
+                    initial={{ opacity: 0, y: 18 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, amount: 0.1 }}
+                    whileHover={{ y: -5 }}
+                    className="group overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] shadow-lg transition hover:border-sky-300/40 hover:bg-white/[0.09]"
+                  >
+                    <div className="relative aspect-video overflow-hidden bg-black">
+                      <video
+                        src={video.url}
+                        poster={video.thumbnail || undefined}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        className="h-full w-full object-contain"
+                        onError={() => {
+                          console.error("Video playback failed:", video.url);
+                        }}
+                      />
 
-        {/* PRODUCT SEARCH */}
+                      <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-xs font-bold text-white backdrop-blur">
+                        <Play size={12} fill="currentColor" />
+                        LEDORA
+                      </div>
+                    </div>
+
+                    <div className="p-5">
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="rounded-full bg-sky-300/10 px-3 py-1 text-xs font-bold text-sky-200">
+                          Beauty & Care
+                        </span>
+                        <Video size={18} className="text-sky-300" />
+                      </div>
+
+                      <h3 className="text-lg font-bold text-white transition group-hover:text-sky-200">
+                        {video.title}
+                      </h3>
+
+                      <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-300">
+                        {video.description ||
+                          "Discover more from LEDORA Beauty."}
+                      </p>
+                    </div>
+                  </motion.article>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-white/20 bg-white/[0.04] px-6 py-14 text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-300/10 text-sky-200">
+                  <Video size={30} />
+                </div>
+
+                <h3 className="mt-5 text-xl font-bold text-white">
+                  No Videos Yet
+                </h3>
+
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-300">
+                  Beauty tutorials and product demonstrations will appear here
+                  when they are uploaded by LEDORA.
+                </p>
+
+                <button
+                  onClick={loadProductSection}
+                  className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-slate-900"
+                >
+                  <RefreshCw size={16} />
+                  Refresh Videos
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
 
         {config.searchSection.enabled && (
           <section className="mb-8">
@@ -724,8 +725,6 @@ export default function Products() {
             </div>
           </section>
         )}
-
-        {/* PRODUCTS GRID */}
 
         <section id="product-grid" className="scroll-mt-8">
           {loading ? (
@@ -862,8 +861,6 @@ export default function Products() {
             </div>
           )}
         </section>
-
-        {/* CUSTOMER COMMENTS */}
 
         <section className="mt-20">
           <div className="mb-8 text-center">
@@ -1003,8 +1000,6 @@ export default function Products() {
           </div>
         </section>
 
-        {/* CONTACT SECTION */}
-
         {config.contactSection.enabled && (
           <motion.section
             initial={{ opacity: 0, y: 20 }}
@@ -1013,7 +1008,6 @@ export default function Products() {
             className="relative mt-16 overflow-hidden rounded-3xl bg-slate-900 px-6 py-12 text-center text-white md:px-12 md:py-16"
           >
             <div className="pointer-events-none absolute -left-12 -top-16 h-56 w-56 rounded-full bg-sky-500/20 blur-3xl" />
-
             <div className="pointer-events-none absolute -bottom-20 -right-10 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
 
             <div className="relative z-10 mx-auto max-w-2xl">

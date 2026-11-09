@@ -138,13 +138,22 @@ function normalizeConfig(data) {
     products: Array.isArray(source.products) ? source.products : [],
 
     videos: Array.isArray(source.videos)
-      ? source.videos.filter(
-          (video) =>
-            video &&
-            typeof video === "object" &&
-            typeof video.url === "string" &&
-            video.url.trim() !== "",
-        )
+      ? source.videos
+          .filter(
+            (video) =>
+              video &&
+              typeof video === "object" &&
+              typeof video.url === "string" &&
+              video.url.trim() !== "",
+          )
+          .map((video) => ({
+            ...video,
+            id: video.id || video._id || createId("video"),
+            title: video.title || "",
+            description: video.description || "",
+            url: video.url.trim(),
+            publicId: video.publicId || "",
+          }))
       : [],
 
     comments: Array.isArray(source.comments) ? source.comments : [],
@@ -156,27 +165,6 @@ function normalizeConfig(data) {
     searchSection: {
       ...initialConfig.searchSection,
       ...(source.searchSection || {}),
-      enabled: source.searchSection?.enabled ?? true,
-      badge:
-        typeof source.searchSection?.badge === "string"
-          ? source.searchSection.badge
-          : initialConfig.searchSection.badge,
-      title:
-        typeof source.searchSection?.title === "string"
-          ? source.searchSection.title
-          : initialConfig.searchSection.title,
-      description:
-        typeof source.searchSection?.description === "string"
-          ? source.searchSection.description
-          : initialConfig.searchSection.description,
-      placeholder:
-        typeof source.searchSection?.placeholder === "string"
-          ? source.searchSection.placeholder
-          : initialConfig.searchSection.placeholder,
-      showCategoryFilters: source.searchSection?.showCategoryFilters ?? true,
-      showFavorites: source.searchSection?.showFavorites ?? true,
-      showResultCount: source.searchSection?.showResultCount ?? true,
-      showClearButton: source.searchSection?.showClearButton ?? true,
     },
 
     contactSection: {
@@ -579,6 +567,7 @@ export default function ProductManagement() {
   async function saveConfigToServer(nextConfig) {
     const payload = {
       ...nextConfig,
+
       videos: Array.isArray(nextConfig.videos)
         ? nextConfig.videos
             .filter(
@@ -588,18 +577,22 @@ export default function ProductManagement() {
                 video.url.trim() !== "",
             )
             .map((video) => ({
-              id: video.id || "",
+              id: video.id || video._id || "",
               title: video.title || "",
               description: video.description || "",
               url: video.url.trim(),
               publicId: video.publicId || "",
             }))
         : [],
+
       products: Array.isArray(nextConfig.products) ? nextConfig.products : [],
+
       categories: Array.isArray(nextConfig.categories)
         ? nextConfig.categories
         : [],
+
       comments: Array.isArray(nextConfig.comments) ? nextConfig.comments : [],
+
       categoryDetails: Array.isArray(nextConfig.categoryDetails)
         ? nextConfig.categoryDetails
         : [],
@@ -615,11 +608,13 @@ export default function ProductManagement() {
       body: JSON.stringify(payload),
     });
 
-    const data = await readResponse(response);
+    const responseData = await readResponse(response);
 
-    if (!response.ok) {
+    if (!response.ok || responseData.success === false) {
       throw new Error(
-        data?.message || data?.error || `Save failed: ${response.status}`,
+        responseData.message ||
+          responseData.error ||
+          `Save failed: ${response.status}`,
       );
     }
 
@@ -639,19 +634,27 @@ export default function ProductManagement() {
 
     const verifiedConfig = normalizeConfig(verifyData);
 
-    const savedUrls = new Set(
-      verifiedConfig.videos.map((video) => video.url?.trim()).filter(Boolean),
+    const savedVideoUrls = verifiedConfig.videos.map((video) =>
+      video.url.trim(),
     );
 
-    const missingVideos = payload.videos.filter(
-      (video) => !savedUrls.has(video.url),
-    );
+    const expectedVideoUrls = payload.videos.map((video) => video.url.trim());
 
-    if (missingVideos.length > 0) {
-      throw new Error(
-        `${missingVideos.length} video(s) could not be verified after saving. Please check the backend.`,
-      );
+    const remainingUrls = [...savedVideoUrls];
+
+    for (const expectedUrl of expectedVideoUrls) {
+      const index = remainingUrls.indexOf(expectedUrl);
+
+      if (index === -1) {
+        throw new Error(
+          "Some videos were not saved in the database. Please check the backend.",
+        );
+      }
+
+      remainingUrls.splice(index, 1);
     }
+
+    console.log("Videos saved and verified:", verifiedConfig.videos);
 
     return verifiedConfig;
   }
@@ -925,7 +928,7 @@ export default function ProductManagement() {
       setVideoUploading(true);
       setMessage("");
 
-      let newVideos = [];
+      const newVideos = [];
 
       if (videoFiles.length > 0) {
         for (let index = 0; index < videoFiles.length; index++) {
@@ -947,7 +950,6 @@ export default function ProductManagement() {
             description: videoForm.description.trim(),
             url: uploaded.url,
             publicId: uploaded.publicId,
-            originalFileName: file.name,
           });
         }
       } else {
@@ -975,19 +977,23 @@ export default function ProductManagement() {
 
       const currentVideos = [...config.videos];
 
-      if (editingVideoId !== null && videoFiles.length === 0) {
+      if (editingVideoId !== null) {
         const index = currentVideos.findIndex(
           (item) => getItemId(item) === editingVideoId,
         );
 
         if (index !== -1) {
-          currentVideos[index] = {
-            ...currentVideos[index],
-            ...newVideos[0],
-            id: currentVideos[index].id || editingVideoId,
-          };
+          if (videoFiles.length > 0) {
+            currentVideos.splice(index, 1, ...newVideos);
+          } else {
+            currentVideos[index] = {
+              ...currentVideos[index],
+              ...newVideos[0],
+              id: currentVideos[index].id || editingVideoId,
+            };
+          }
         } else {
-          currentVideos.push(newVideos[0]);
+          currentVideos.push(...newVideos);
         }
       } else {
         currentVideos.push(...newVideos);
@@ -1003,14 +1009,13 @@ export default function ProductManagement() {
       const verifiedConfig = await saveConfigToServer(nextConfig);
 
       setConfig(verifiedConfig);
-
       setShowVideoForm(false);
       setEditingVideoId(null);
       setVideoFiles([]);
       setVideoForm(emptyVideo);
 
       notify(
-        `${newVideos.length} video(s) uploaded and saved successfully.`,
+        `${newVideos.length} video(s) saved and verified successfully.`,
         "success",
       );
     } catch (error) {
