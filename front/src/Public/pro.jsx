@@ -47,38 +47,41 @@ const categoryImages = {
 };
 
 function normalizeProduct(product, index) {
-  const category = product.category || "Skincare";
+  const item = product && typeof product === "object" ? product : {};
+  const category = item.category || "Skincare";
 
   return {
     id: String(
-      product._id ||
-        product.id ||
-        product.code ||
-        product.productCode ||
+      item._id ||
+        item.id ||
+        item.code ||
+        item.productCode ||
         `product-${index}`,
     ),
-    name: product.name || product.title || "Unnamed product",
-    code: String(product.code || product.productCode || product.sku || ""),
+    name: item.name || item.title || "Unnamed product",
+    code: String(item.code || item.productCode || item.sku || ""),
     category,
     image:
-      product.image ||
-      product.imageUrl ||
-      product.photo ||
+      item.image ||
+      item.imageUrl ||
+      item.photo ||
       categoryImages[category] ||
       categoryImages.Skincare,
-    description: product.description || "",
-    price: product.price || "",
-    badge: product.badge || "",
+    description: item.description || "",
+    price: item.price || "",
+    badge: item.badge || "",
   };
 }
 
 function normalizeVideo(video, index) {
+  const item = video && typeof video === "object" ? video : {};
+
   return {
-    id: String(video._id || video.id || video.publicId || `video-${index}`),
-    title: video.title || video.name || "Beauty Video",
-    description: video.description || "",
-    url: video.url || video.videoUrl || video.secure_url || "",
-    thumbnail: video.thumbnail || video.thumbnailUrl || "",
+    id: String(item._id || item.id || item.publicId || `video-${index}`),
+    title: item.title || item.name || `Beauty Video ${index + 1}`,
+    description: item.description || "",
+    url: String(item.url || item.videoUrl || item.secure_url || "").trim(),
+    thumbnail: item.thumbnail || item.thumbnailUrl || "",
   };
 }
 
@@ -100,11 +103,40 @@ function normalizeConfig(data) {
       "Explore makeup, skincare, hair care, perfumes, and more.",
     categories:
       Array.isArray(source.categories) && source.categories.length > 0
-        ? source.categories
+        ? source.categories.filter(
+            (category) => typeof category === "string" && category.trim(),
+          )
         : defaultCategories,
+    categoryDetails: Array.isArray(source.categoryDetails)
+      ? source.categoryDetails
+      : [],
     products: Array.isArray(source.products) ? source.products : [],
     videos: Array.isArray(source.videos) ? source.videos : [],
     comments: Array.isArray(source.comments) ? source.comments : [],
+    searchSection: {
+      enabled: source.searchSection?.enabled ?? true,
+      badge: source.searchSection?.badge ?? "Find Your Favorites",
+      title: source.searchSection?.title ?? "Our Beauty Collection",
+      description:
+        source.searchSection?.description ??
+        "Search by product name, code, or category.",
+      placeholder:
+        source.searchSection?.placeholder ??
+        "Search products, codes, categories...",
+      showCategoryFilters: source.searchSection?.showCategoryFilters ?? true,
+      showFavorites: source.searchSection?.showFavorites ?? true,
+      showResultCount: source.searchSection?.showResultCount ?? true,
+      showClearButton: source.searchSection?.showClearButton ?? true,
+    },
+    contactSection: {
+      enabled: source.contactSection?.enabled ?? true,
+      title: source.contactSection?.title ?? "Need Help Choosing?",
+      description:
+        source.contactSection?.description ??
+        "Have questions about a product? Contact us to learn more about our collection.",
+      buttonText: source.contactSection?.buttonText ?? "Contact Us",
+      buttonLink: source.contactSection?.buttonLink ?? "/connect",
+    },
   };
 }
 
@@ -139,29 +171,40 @@ export default function Products() {
 
   const categoryCards = useMemo(
     () =>
-      config.categories.map((name) => ({
-        name,
-        subtitle:
-          name === "Makeup"
-            ? "Makeup essentials"
-            : name === "Skincare"
-              ? "Your skincare routine"
-              : name === "Viper"
-                ? "Viper collection"
-                : name === "Spirulina"
-                  ? "Face masks"
-                  : name === "Hair Care"
-                    ? "Hair care essentials"
-                    : name === "Soap & Body"
-                      ? "Body care"
-                      : name === "Perfume"
-                        ? "Find your fragrance"
-                        : name === "Pomegranate"
-                          ? "Pomegranate collection"
-                          : `${name} collection`,
-        image: categoryImages[name] || categoryImages.Skincare,
-      })),
-    [config.categories],
+      config.categories.map((name) => {
+        const details = config.categoryDetails.find(
+          (item) =>
+            String(item.name || "")
+              .trim()
+              .toLowerCase() === name.trim().toLowerCase(),
+        );
+
+        return {
+          name,
+          subtitle:
+            details?.subtitle ||
+            (name === "Makeup"
+              ? "Makeup essentials"
+              : name === "Skincare"
+                ? "Your skincare routine"
+                : name === "Viper"
+                  ? "Viper collection"
+                  : name === "Spirulina"
+                    ? "Face masks"
+                    : name === "Hair Care"
+                      ? "Hair care essentials"
+                      : name === "Soap & Body"
+                        ? "Body care"
+                        : name === "Perfume"
+                          ? "Find your fragrance"
+                          : name === "Pomegranate"
+                            ? "Pomegranate collection"
+                            : `${name} collection`),
+          image:
+            details?.image || categoryImages[name] || categoryImages.Skincare,
+        };
+      }),
+    [config.categories, config.categoryDetails],
   );
 
   // LOAD ALL PRODUCT SECTION DATA
@@ -473,7 +516,7 @@ export default function Products() {
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {videos.map((video, index) => (
                 <motion.article
-                  key={video.id}
+                  key={`${video.id}-${index}`}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, amount: 0.1 }}
@@ -563,104 +606,116 @@ export default function Products() {
 
         {/* PRODUCT SEARCH */}
 
-        <section className="mb-8">
-          <div className="mb-6">
-            <p className="text-sm font-bold uppercase tracking-widest text-sky-600">
-              Find Your Favorites
-            </p>
+        {config.searchSection.enabled && (
+          <section className="mb-8">
+            <div className="mb-6">
+              <p className="text-sm font-bold uppercase tracking-widest text-sky-600">
+                {config.searchSection.badge}
+              </p>
 
-            <h2 className="mt-2 text-2xl font-bold md:text-3xl">
-              Our Beauty Collection
-            </h2>
+              <h2 className="mt-2 text-2xl font-bold md:text-3xl">
+                {config.searchSection.title}
+              </h2>
 
-            <p className="mt-2 text-slate-500">
-              Search by product name, code, or category.
-            </p>
-          </div>
+              <p className="mt-2 text-slate-500">
+                {config.searchSection.description}
+              </p>
+            </div>
 
-          <div className="flex flex-col gap-4 lg:flex-row">
-            <div className="relative flex-1">
-              <Search
-                size={20}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-              />
+            <div className="flex flex-col gap-4 lg:flex-row">
+              <div className="relative flex-1">
+                <Search
+                  size={20}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                />
 
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search products, codes, categories..."
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-12 outline-none transition focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100"
-              />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder={config.searchSection.placeholder}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-12 outline-none transition focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100"
+                />
 
-              {searchTerm && (
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    aria-label="Clear search"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+              </div>
+
+              {config.searchSection.showFavorites && (
                 <button
-                  onClick={() => setSearchTerm("")}
-                  aria-label="Clear search"
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                  onClick={() => setShowFavorites((current) => !current)}
+                  className={`inline-flex items-center justify-center gap-2 rounded-2xl border px-5 py-4 font-semibold transition ${
+                    showFavorites
+                      ? "border-rose-200 bg-rose-50 text-rose-600"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-rose-200 hover:text-rose-600"
+                  }`}
                 >
-                  <X size={18} />
+                  <Heart
+                    size={19}
+                    fill={showFavorites ? "currentColor" : "none"}
+                  />
+                  Favorites ({favorites.length})
                 </button>
               )}
             </div>
 
-            <button
-              onClick={() => setShowFavorites((current) => !current)}
-              className={`inline-flex items-center justify-center gap-2 rounded-2xl border px-5 py-4 font-semibold transition ${
-                showFavorites
-                  ? "border-rose-200 bg-rose-50 text-rose-600"
-                  : "border-slate-200 bg-white text-slate-700 hover:border-rose-200 hover:text-rose-600"
-              }`}
-            >
-              <Heart size={19} fill={showFavorites ? "currentColor" : "none"} />
-              Favorites ({favorites.length})
-            </button>
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-2">
-            {categories.map((category) => (
-              <button
-                key={category}
-                onClick={() => {
-                  setSelectedCategory(category);
-                  setShowFavorites(false);
-                }}
-                className={`rounded-full px-5 py-2.5 text-sm font-semibold transition ${
-                  selectedCategory === category
-                    ? "bg-sky-600 text-white shadow-md shadow-sky-100"
-                    : "border border-slate-200 bg-white text-slate-600 hover:border-sky-300 hover:text-sky-700"
-                }`}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-slate-500">
-              Showing{" "}
-              <span className="font-bold text-slate-900">
-                {filteredProducts.length}
-              </span>{" "}
-              products
-            </p>
-
-            {(searchTerm ||
-              selectedCategory !== "All Products" ||
-              showFavorites) && (
-              <button
-                onClick={() => {
-                  setSearchTerm("");
-                  setSelectedCategory("All Products");
-                  setShowFavorites(false);
-                }}
-                className="text-sm font-semibold text-sky-700 hover:text-sky-900"
-              >
-                Clear all filters
-              </button>
+            {config.searchSection.showCategoryFilters && (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => {
+                      setSelectedCategory(category);
+                      setShowFavorites(false);
+                    }}
+                    className={`rounded-full px-5 py-2.5 text-sm font-semibold transition ${
+                      selectedCategory === category
+                        ? "bg-sky-600 text-white shadow-md shadow-sky-100"
+                        : "border border-slate-200 bg-white text-slate-600 hover:border-sky-300 hover:text-sky-700"
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
             )}
-          </div>
-        </section>
+
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              {config.searchSection.showResultCount && (
+                <p className="text-sm text-slate-500">
+                  Showing{" "}
+                  <span className="font-bold text-slate-900">
+                    {filteredProducts.length}
+                  </span>{" "}
+                  products
+                </p>
+              )}
+
+              {config.searchSection.showClearButton &&
+                (searchTerm ||
+                  selectedCategory !== "All Products" ||
+                  showFavorites) && (
+                  <button
+                    onClick={() => {
+                      setSearchTerm("");
+                      setSelectedCategory("All Products");
+                      setShowFavorites(false);
+                    }}
+                    className="text-sm font-semibold text-sky-700 hover:text-sky-900"
+                  >
+                    Clear all filters
+                  </button>
+                )}
+            </div>
+          </section>
+        )}
 
         {/* PRODUCTS GRID */}
 
@@ -942,37 +997,38 @@ export default function Products() {
 
         {/* CONTACT SECTION */}
 
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="relative mt-16 overflow-hidden rounded-3xl bg-slate-900 px-6 py-12 text-center text-white md:px-12 md:py-16"
-        >
-          <div className="pointer-events-none absolute -left-12 -top-16 h-56 w-56 rounded-full bg-sky-500/20 blur-3xl" />
+        {config.contactSection.enabled && (
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="relative mt-16 overflow-hidden rounded-3xl bg-slate-900 px-6 py-12 text-center text-white md:px-12 md:py-16"
+          >
+            <div className="pointer-events-none absolute -left-12 -top-16 h-56 w-56 rounded-full bg-sky-500/20 blur-3xl" />
 
-          <div className="pointer-events-none absolute -bottom-20 -right-10 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-20 -right-10 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
 
-          <div className="relative z-10 mx-auto max-w-2xl">
-            <Sparkles size={30} className="mx-auto text-cyan-300" />
+            <div className="relative z-10 mx-auto max-w-2xl">
+              <Sparkles size={30} className="mx-auto text-cyan-300" />
 
-            <h2 className="mt-5 text-3xl font-bold md:text-4xl">
-              Need Help Choosing?
-            </h2>
+              <h2 className="mt-5 text-3xl font-bold md:text-4xl">
+                {config.contactSection.title}
+              </h2>
 
-            <p className="mt-4 leading-7 text-slate-300">
-              Have questions about a product? Contact us to learn more about our
-              collection.
-            </p>
+              <p className="mt-4 leading-7 text-slate-300">
+                {config.contactSection.description}
+              </p>
 
-            <a
-              href="/connect"
-              className="mt-7 inline-flex items-center gap-2 rounded-full bg-white px-7 py-3 font-bold text-slate-900 transition hover:bg-cyan-100"
-            >
-              Contact Us
-              <ArrowRight size={18} />
-            </a>
-          </div>
-        </motion.section>
+              <a
+                href={config.contactSection.buttonLink}
+                className="mt-7 inline-flex items-center gap-2 rounded-full bg-white px-7 py-3 font-bold text-slate-900 transition hover:bg-cyan-100"
+              >
+                {config.contactSection.buttonText}
+                <ArrowRight size={18} />
+              </a>
+            </div>
+          </motion.section>
+        )}
       </div>
     </main>
   );

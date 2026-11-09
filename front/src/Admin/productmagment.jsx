@@ -18,8 +18,6 @@ import {
   MessageSquare,
   Search,
   Phone,
-  LayoutGrid,
-  Star,
   ExternalLink,
   EyeOff,
 } from "lucide-react";
@@ -64,12 +62,14 @@ const initialConfig = {
 
   searchSection: {
     enabled: true,
-    title: "Find Your Beauty Favorites",
-    description: "Search and discover products for your routine.",
-    showSearch: true,
+    badge: "Find Your Favorites",
+    title: "Our Beauty Collection",
+    description: "Search by product name, code, or category.",
+    placeholder: "Search products, codes, categories...",
     showCategoryFilters: true,
     showFavorites: true,
-    showProductCount: true,
+    showResultCount: true,
+    showClearButton: true,
   },
 
   contactSection: {
@@ -79,20 +79,6 @@ const initialConfig = {
       "Contact us for product information and personalized beauty recommendations.",
     buttonText: "Contact Us",
     buttonLink: "/connect",
-  },
-
-  commentsSection: {
-    enabled: true,
-    title: "Customer Reviews",
-    description: "Share your experience with our beauty collection.",
-    showForm: true,
-  },
-
-  categoryDesign: {
-    title: "Shop by Category",
-    description: "Explore our beauty collections.",
-    columns: "4",
-    cardStyle: "rounded",
   },
 };
 
@@ -115,7 +101,6 @@ const emptyVideo = {
 const emptyComment = {
   name: "",
   message: "",
-  rating: 5,
   approved: true,
 };
 
@@ -129,7 +114,6 @@ const tabs = [
   { id: "comments", label: "Customer Comments", icon: MessageSquare },
   { id: "search", label: "Search & Filters", icon: Search },
   { id: "contact", label: "Contact Section", icon: Phone },
-  { id: "categoryDesign", label: "Category Design", icon: LayoutGrid },
 ];
 
 function normalizeConfig(data) {
@@ -172,21 +156,32 @@ function normalizeConfig(data) {
     searchSection: {
       ...initialConfig.searchSection,
       ...(source.searchSection || {}),
+      enabled: source.searchSection?.enabled ?? true,
+      badge:
+        typeof source.searchSection?.badge === "string"
+          ? source.searchSection.badge
+          : initialConfig.searchSection.badge,
+      title:
+        typeof source.searchSection?.title === "string"
+          ? source.searchSection.title
+          : initialConfig.searchSection.title,
+      description:
+        typeof source.searchSection?.description === "string"
+          ? source.searchSection.description
+          : initialConfig.searchSection.description,
+      placeholder:
+        typeof source.searchSection?.placeholder === "string"
+          ? source.searchSection.placeholder
+          : initialConfig.searchSection.placeholder,
+      showCategoryFilters: source.searchSection?.showCategoryFilters ?? true,
+      showFavorites: source.searchSection?.showFavorites ?? true,
+      showResultCount: source.searchSection?.showResultCount ?? true,
+      showClearButton: source.searchSection?.showClearButton ?? true,
     },
 
     contactSection: {
       ...initialConfig.contactSection,
       ...(source.contactSection || {}),
-    },
-
-    commentsSection: {
-      ...initialConfig.commentsSection,
-      ...(source.commentsSection || {}),
-    },
-
-    categoryDesign: {
-      ...initialConfig.categoryDesign,
-      ...(source.categoryDesign || {}),
     },
   };
 }
@@ -1034,7 +1029,6 @@ export default function ProductManagement() {
     setCommentForm({
       name: comment.name ?? "",
       message: comment.message ?? "",
-      rating: Number(comment.rating ?? 5),
       approved: comment.approved !== false,
     });
 
@@ -1052,7 +1046,6 @@ export default function ProductManagement() {
       ...commentForm,
       name: commentForm.name.trim(),
       message: commentForm.message.trim(),
-      rating: Number(commentForm.rating),
     };
 
     setConfig((current) => {
@@ -1205,22 +1198,14 @@ export default function ProductManagement() {
 
           <section>
             <h2 className="text-3xl font-bold text-slate-800">
-              {config.categoryDesign.title}
+              Shop by Category
             </h2>
 
             <p className="mt-2 text-slate-500">
-              {config.categoryDesign.description}
+              Explore our beauty collections.
             </p>
 
-            <div
-              className="mt-6 grid gap-5"
-              style={{
-                gridTemplateColumns: `repeat(${Math.max(
-                  1,
-                  Math.min(6, Number(config.categoryDesign.columns) || 4),
-                )}, minmax(0, 1fr))`,
-              }}
-            >
+            <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
               {config.categories.map((category) => {
                 const detail = getCategoryDetail(category);
 
@@ -1334,45 +1319,30 @@ export default function ProductManagement() {
             </section>
           )}
 
-          {config.commentsSection.enabled && (
-            <section>
-              <h2 className="text-3xl font-bold text-slate-800">
-                {config.commentsSection.title}
-              </h2>
+          <section>
+            <h2 className="text-3xl font-bold text-slate-800">
+              Community Feedback
+            </h2>
 
-              <p className="mt-2 text-slate-500">
-                {config.commentsSection.description}
-              </p>
+            <div className="mt-6 grid gap-5 md:grid-cols-3">
+              {config.comments
+                .filter((comment) => comment.approved !== false)
+                .map((comment) => (
+                  <article
+                    key={getItemId(comment)}
+                    className="rounded-2xl border border-slate-200 bg-white p-5"
+                  >
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                      {comment.message}
+                    </p>
 
-              <div className="mt-6 grid gap-5 md:grid-cols-3">
-                {config.comments
-                  .filter((comment) => comment.approved !== false)
-                  .map((comment) => (
-                    <article
-                      key={getItemId(comment)}
-                      className="rounded-2xl border border-slate-200 bg-white p-5"
-                    >
-                      <div className="flex gap-1 text-amber-400">
-                        {Array.from(
-                          { length: Number(comment.rating) || 5 },
-                          (_, index) => (
-                            <Star key={index} size={16} fill="currentColor" />
-                          ),
-                        )}
-                      </div>
-
-                      <p className="mt-3 text-sm leading-6 text-slate-600">
-                        {comment.message}
-                      </p>
-
-                      <p className="mt-4 font-bold text-slate-800">
-                        {comment.name}
-                      </p>
-                    </article>
-                  ))}
-              </div>
-            </section>
-          )}
+                    <p className="mt-4 font-bold text-slate-800">
+                      {comment.name}
+                    </p>
+                  </article>
+                ))}
+            </div>
+          </section>
         </main>
       </div>
     );
@@ -2253,41 +2223,6 @@ export default function ProductManagement() {
                   </button>
                 </div>
 
-                <div className="mt-6 space-y-4">
-                  <Field
-                    label="Comments Section Title"
-                    value={config.commentsSection.title}
-                    onChange={(value) =>
-                      updateNested("commentsSection", "title", value)
-                    }
-                  />
-
-                  <Field
-                    label="Comments Section Description"
-                    value={config.commentsSection.description}
-                    onChange={(value) =>
-                      updateNested("commentsSection", "description", value)
-                    }
-                    multiline
-                  />
-
-                  <Toggle
-                    label="Enable Customer Comments"
-                    checked={config.commentsSection.enabled}
-                    onChange={(value) =>
-                      updateNested("commentsSection", "enabled", value)
-                    }
-                  />
-
-                  <Toggle
-                    label="Show Customer Comment Form"
-                    checked={config.commentsSection.showForm}
-                    onChange={(value) =>
-                      updateNested("commentsSection", "showForm", value)
-                    }
-                  />
-                </div>
-
                 {showCommentForm && (
                   <form
                     onSubmit={saveComment}
@@ -2332,29 +2267,6 @@ export default function ProductManagement() {
                       multiline
                     />
 
-                    <label className="block space-y-2">
-                      <span className="text-sm font-medium text-slate-600">
-                        Rating
-                      </span>
-
-                      <select
-                        value={commentForm.rating}
-                        onChange={(event) =>
-                          setCommentForm((current) => ({
-                            ...current,
-                            rating: Number(event.target.value),
-                          }))
-                        }
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3"
-                      >
-                        {[5, 4, 3, 2, 1].map((rating) => (
-                          <option key={rating} value={rating}>
-                            {rating} Stars
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
                     <Toggle
                       label="Approved"
                       checked={commentForm.approved}
@@ -2392,19 +2304,6 @@ export default function ProductManagement() {
                               <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">
                                 Approved
                               </span>
-                            )}
-                          </div>
-
-                          <div className="mt-2 flex gap-1 text-amber-400">
-                            {Array.from(
-                              { length: Number(comment.rating) || 5 },
-                              (_, index) => (
-                                <Star
-                                  key={index}
-                                  size={15}
-                                  fill="currentColor"
-                                />
-                              ),
                             )}
                           </div>
 
@@ -2462,6 +2361,14 @@ export default function ProductManagement() {
 
                 <div className="mt-6 space-y-4">
                   <Field
+                    label="Section Badge"
+                    value={config.searchSection.badge}
+                    onChange={(value) =>
+                      updateNested("searchSection", "badge", value)
+                    }
+                  />
+
+                  <Field
                     label="Section Title"
                     value={config.searchSection.title}
                     onChange={(value) =>
@@ -2478,19 +2385,19 @@ export default function ProductManagement() {
                     multiline
                   />
 
+                  <Field
+                    label="Search Placeholder"
+                    value={config.searchSection.placeholder}
+                    onChange={(value) =>
+                      updateNested("searchSection", "placeholder", value)
+                    }
+                  />
+
                   <Toggle
                     label="Enable Search Section"
                     checked={config.searchSection.enabled}
                     onChange={(value) =>
                       updateNested("searchSection", "enabled", value)
-                    }
-                  />
-
-                  <Toggle
-                    label="Show Search Input"
-                    checked={config.searchSection.showSearch}
-                    onChange={(value) =>
-                      updateNested("searchSection", "showSearch", value)
                     }
                   />
 
@@ -2515,10 +2422,18 @@ export default function ProductManagement() {
                   />
 
                   <Toggle
-                    label="Show Product Count"
-                    checked={config.searchSection.showProductCount}
+                    label="Show Result Count"
+                    checked={config.searchSection.showResultCount}
                     onChange={(value) =>
-                      updateNested("searchSection", "showProductCount", value)
+                      updateNested("searchSection", "showResultCount", value)
+                    }
+                  />
+
+                  <Toggle
+                    label="Show Clear Filters Button"
+                    checked={config.searchSection.showClearButton}
+                    onChange={(value) =>
+                      updateNested("searchSection", "showClearButton", value)
                     }
                   />
                 </div>
@@ -2574,81 +2489,6 @@ export default function ProductManagement() {
                       updateNested("contactSection", "enabled", value)
                     }
                   />
-                </div>
-              </section>
-            )}
-
-            {activeTab === "categoryDesign" && (
-              <section className={cardClass}>
-                <h3 className="text-xl font-bold">Category Design</h3>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  Customize the Shop by Category section.
-                </p>
-
-                <div className="mt-6 space-y-5">
-                  <Field
-                    label="Section Title"
-                    value={config.categoryDesign.title}
-                    onChange={(value) =>
-                      updateNested("categoryDesign", "title", value)
-                    }
-                  />
-
-                  <Field
-                    label="Section Description"
-                    value={config.categoryDesign.description}
-                    onChange={(value) =>
-                      updateNested("categoryDesign", "description", value)
-                    }
-                    multiline
-                  />
-
-                  <label className="block space-y-2">
-                    <span className="text-sm font-medium text-slate-600">
-                      Number of Columns
-                    </span>
-
-                    <select
-                      value={config.categoryDesign.columns}
-                      onChange={(event) =>
-                        updateNested(
-                          "categoryDesign",
-                          "columns",
-                          event.target.value,
-                        )
-                      }
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3"
-                    >
-                      {[2, 3, 4, 5, 6].map((number) => (
-                        <option key={number} value={String(number)}>
-                          {number} Columns
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="block space-y-2">
-                    <span className="text-sm font-medium text-slate-600">
-                      Card Style
-                    </span>
-
-                    <select
-                      value={config.categoryDesign.cardStyle}
-                      onChange={(event) =>
-                        updateNested(
-                          "categoryDesign",
-                          "cardStyle",
-                          event.target.value,
-                        )
-                      }
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3"
-                    >
-                      <option value="rounded">Rounded</option>
-                      <option value="square">Square</option>
-                      <option value="soft">Soft Rounded</option>
-                    </select>
-                  </label>
                 </div>
               </section>
             )}
