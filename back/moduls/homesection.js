@@ -46,6 +46,63 @@ const featuredProductSchema = new mongoose.Schema(
   { _id: true },
 );
 
+const videoSchema = new mongoose.Schema(
+  {
+    id: {
+      type: String,
+      default: "",
+    },
+    title: {
+      type: String,
+      default: "New Beauty Video",
+      trim: true,
+    },
+    description: {
+      type: String,
+      default: "",
+    },
+    url: {
+      type: String,
+      default: "",
+    },
+    publicId: {
+      type: String,
+      default: "",
+    },
+    originalFileName: {
+      type: String,
+      default: "",
+    },
+  },
+  { _id: true },
+);
+
+const homeSectionItemSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      default: "custom",
+    },
+    title: {
+      type: String,
+      default: "",
+    },
+    description: {
+      type: String,
+      default: "",
+    },
+    order: {
+      type: Number,
+      default: 0,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  { _id: true },
+);
+
 const homeSectionSchema = new mongoose.Schema(
   {
     brand: {
@@ -121,6 +178,16 @@ const homeSectionSchema = new mongoose.Schema(
 
     products: {
       type: [featuredProductSchema],
+      default: [],
+    },
+
+    videos: {
+      type: [videoSchema],
+      default: [],
+    },
+
+    sections: {
+      type: [homeSectionItemSchema],
       default: [],
     },
 

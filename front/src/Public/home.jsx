@@ -10,6 +10,10 @@ import {
   Truck,
   ShieldCheck,
   Headphones,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 
 const API_URL = "https://zharaallcode.onrender.com/api/home";
@@ -54,40 +58,8 @@ const defaultContent = {
         "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=700&q=85",
     },
   ],
-  products: [
-    {
-      name: "Radiant Foundation",
-      category: "Makeup",
-      price: "19.99",
-      image:
-        "https://images.unsplash.com/photo-1631214540242-7b7c7f2a4c6b?auto=format&fit=crop&w=600&q=85",
-      badge: "Popular",
-    },
-    {
-      name: "Everyday Lip Tint",
-      category: "Lip Makeup",
-      price: "12.50",
-      image:
-        "https://images.unsplash.com/photo-1586495777744-4413f21062fa?auto=format&fit=crop&w=600&q=85",
-      badge: "New",
-    },
-    {
-      name: "Skin Care Essentials",
-      category: "Skincare",
-      price: "24.00",
-      image:
-        "https://images.unsplash.com/photo-1556229010-6c3f2c9ca5f8?auto=format&fit=crop&w=600&q=85",
-      badge: "",
-    },
-    {
-      name: "Beauty Collection",
-      category: "Beauty",
-      price: "29.99",
-      image:
-        "https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=600&q=85",
-      badge: "Trending",
-    },
-  ],
+  products: [],
+  videos: [],
 };
 
 const benefits = [
@@ -110,6 +82,8 @@ const benefits = [
 
 function Home() {
   const [content, setContent] = useState(defaultContent);
+  const [playingVideo, setPlayingVideo] = useState(null);
+  const [mutedVideos, setMutedVideos] = useState({});
 
   useEffect(() => {
     const controller = new AbortController();
@@ -134,14 +108,11 @@ function Home() {
             Array.isArray(saved.categories) && saved.categories.length > 0
               ? saved.categories
               : defaultContent.categories,
-          products:
-            Array.isArray(saved.products) && saved.products.length > 0
-              ? saved.products
-              : defaultContent.products,
+          videos: Array.isArray(saved.videos) ? saved.videos : [],
         });
       } catch (error) {
         if (error.name !== "AbortError") {
-          console.error("Could not load homepage content from backend:", error);
+          console.error("Could not load homepage content:", error);
         }
       }
     }
@@ -151,10 +122,53 @@ function Home() {
     return () => controller.abort();
   }, []);
 
-  const money = (price) => {
-    if (price === undefined || price === null || price === "") return "";
-    const value = String(price);
-    return value.startsWith("$") ? value : `$${value}`;
+  const getVideoUrl = (video) => {
+    if (typeof video === "string") return video;
+
+    return (
+      video?.url ||
+      video?.video ||
+      video?.videoUrl ||
+      video?.src ||
+      video?.file ||
+      ""
+    );
+  };
+
+  const getVideoTitle = (video, index) => {
+    if (typeof video === "string") return `Beauty Video ${index + 1}`;
+
+    return (
+      video?.title ||
+      video?.name ||
+      video?.description ||
+      `Beauty Video ${index + 1}`
+    );
+  };
+
+  const getVideoDescription = (video) => {
+    if (typeof video === "string") return "Discover beauty and fashion.";
+
+    return (
+      video?.description || video?.subtitle || "Discover beauty and fashion."
+    );
+  };
+
+  const getVideoPoster = (video) => {
+    if (typeof video === "string") return "";
+
+    return video?.thumbnail || video?.poster || video?.image || "";
+  };
+
+  const toggleVideo = (index) => {
+    setPlayingVideo((current) => (current === index ? null : index));
+  };
+
+  const toggleMute = (index) => {
+    setMutedVideos((current) => ({
+      ...current,
+      [index]: !current[index],
+    }));
   };
 
   return (
@@ -165,6 +179,8 @@ function Home() {
         color: content.textColor || "#1e293b",
       }}
     >
+      {/* HERO SECTION */}
+
       <section className="relative isolate min-h-[650px] overflow-hidden bg-sky-950">
         {content.heroBackgroundType === "video" && content.heroVideo ? (
           <video
@@ -226,7 +242,9 @@ function Home() {
                 <Link
                   to="/products"
                   className="inline-flex items-center gap-3 rounded-full px-7 py-4 font-semibold text-white shadow-lg transition hover:brightness-110"
-                  style={{ backgroundColor: content.primaryColor || "#38bdf8" }}
+                  style={{
+                    backgroundColor: content.primaryColor || "#38bdf8",
+                  }}
                 >
                   {content.primaryButton}
                   <ArrowRight size={19} />
@@ -246,7 +264,9 @@ function Home() {
                 <Star size={17} className="fill-sky-300 text-sky-300" />
                 Beauty & Fashion
               </div>
+
               <span className="hidden h-5 w-px bg-white/40 sm:block" />
+
               <div className="flex items-center gap-2">
                 <Heart size={17} className="text-sky-300" />
                 Made for You
@@ -256,10 +276,13 @@ function Home() {
         </div>
       </section>
 
+      {/* BENEFITS */}
+
       <section className="border-y border-sky-100 bg-white">
         <div className="mx-auto grid max-w-7xl gap-8 px-5 py-9 sm:grid-cols-2 md:px-8 lg:grid-cols-3">
           {benefits.map((benefit, index) => {
             const Icon = benefit.icon;
+
             return (
               <motion.div
                 key={benefit.title}
@@ -272,10 +295,12 @@ function Home() {
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-sky-500">
                   <Icon size={23} />
                 </div>
+
                 <div>
                   <h3 className="font-semibold text-slate-800">
                     {benefit.title}
                   </h3>
+
                   <p className="mt-1 text-sm text-slate-500">
                     {benefit.description}
                   </p>
@@ -285,6 +310,8 @@ function Home() {
           })}
         </div>
       </section>
+
+      {/* CATEGORIES */}
 
       <section className="mx-auto max-w-7xl px-5 py-20 md:px-8 md:py-24">
         <motion.div
@@ -298,13 +325,16 @@ function Home() {
             <p className="mb-3 text-sm font-semibold uppercase tracking-[0.25em] text-sky-500">
               Find Your Favorites
             </p>
+
             <h2 className="font-serif text-3xl font-bold text-slate-900 sm:text-4xl">
               Explore Our Categories
             </h2>
+
             <p className="mt-3 text-slate-500">
               Discover products that fit your style.
             </p>
           </div>
+
           <Link
             to="/products"
             className="inline-flex items-center gap-2 font-semibold text-sky-600 transition hover:text-sky-700"
@@ -337,16 +367,20 @@ function Home() {
                 ) : (
                   <div className="h-80 w-full bg-sky-100" />
                 )}
+
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-transparent to-transparent" />
+
                 <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-6 text-white">
                   <div>
                     <h3 className="font-serif text-2xl font-bold">
                       {category.name}
                     </h3>
+
                     <p className="mt-2 text-sm text-white/80">
                       {category.description}
                     </p>
                   </div>
+
                   <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-sky-600 transition duration-300 group-hover:bg-sky-400 group-hover:text-white">
                     <ArrowRight size={20} />
                   </span>
@@ -357,95 +391,143 @@ function Home() {
         </div>
       </section>
 
-      <section className="bg-sky-50/70 py-20 md:py-24">
-        <div className="mx-auto max-w-7xl px-5 md:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="mb-10 text-center"
-          >
-            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.25em] text-sky-500">
-              Curated for You
-            </p>
-            <h2 className="font-serif text-3xl font-bold text-slate-900 sm:text-4xl">
-              Featured Products
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl leading-7 text-slate-500">
-              Discover our beauty favorites and find your next everyday
-              essential.
-            </p>
-          </motion.div>
+      {/* BEAUTY VIDEOS */}
 
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {content.products.map((product, index) => (
-              <motion.article
-                key={product._id || `${product.name}-${index}`}
-                initial={{ opacity: 0, y: 25 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                whileHover={{ y: -6 }}
-                className="group overflow-hidden rounded-3xl border border-sky-100/80 bg-white p-3 shadow-sm transition-shadow duration-300 hover:shadow-xl hover:shadow-sky-100"
-              >
-                <Link
-                  to="/products"
-                  className="relative block overflow-hidden rounded-2xl bg-sky-50"
-                >
-                  {product.image ? (
-                    <img
-                      src={product.image}
-                      alt={product.name || "Product"}
-                      loading="lazy"
-                      className="h-72 w-full object-cover transition duration-700 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="h-72 w-full bg-sky-100" />
-                  )}
-                  {product.badge && (
-                    <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-sky-600 shadow-sm">
-                      {product.badge}
-                    </span>
-                  )}
-                  <span className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-white text-sky-600 shadow-md transition duration-300 group-hover:bg-sky-400 group-hover:text-white">
-                    <ArrowRight size={18} />
-                  </span>
-                </Link>
-
-                <div className="px-2 pb-2 pt-4">
-                  <p className="text-xs font-medium uppercase tracking-wider text-sky-500">
-                    {product.category}
-                  </p>
-                  <h3 className="mt-2 font-semibold text-slate-800">
-                    {product.name}
-                  </h3>
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className="text-lg font-bold text-slate-900">
-                      {money(product.price)}
-                    </span>
-                    <Link
-                      to="/products"
-                      aria-label={`View ${product.name || "product"}`}
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-50 text-sky-600 transition hover:bg-sky-400 hover:text-white"
-                    >
-                      <ShoppingBag size={17} />
-                    </Link>
-                  </div>
-                </div>
-              </motion.article>
-            ))}
-          </div>
-
-          <div className="mt-12 text-center">
-            <Link
-              to="/products"
-              className="inline-flex items-center gap-3 rounded-full bg-sky-400 px-8 py-4 font-semibold text-white shadow-lg shadow-sky-200 transition hover:-translate-y-1 hover:bg-sky-500"
+      {content.videos.length > 0 && (
+        <section className="bg-sky-50/70 py-20 md:py-24">
+          <div className="mx-auto max-w-7xl px-5 md:px-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="mb-12 flex flex-wrap items-end justify-between gap-5"
             >
-              Explore All Products <ArrowRight size={19} />
-            </Link>
+              <div>
+                <p className="mb-3 text-sm font-semibold uppercase tracking-[0.25em] text-sky-500">
+                  Watch & Discover
+                </p>
+
+                <h2 className="font-serif text-3xl font-bold text-slate-900 sm:text-4xl">
+                  Beauty Videos
+                </h2>
+
+                <p className="mt-4 max-w-xl leading-7 text-slate-500">
+                  Explore beauty tips, tutorials, skincare routines and
+                  inspiration from our collection.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 text-sm font-medium text-sky-600">
+                <Play size={17} />
+                {content.videos.length} Videos
+              </div>
+            </motion.div>
+
+            <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
+              {content.videos.map((video, index) => {
+                const videoUrl = getVideoUrl(video);
+                const isPlaying = playingVideo === index;
+
+                if (!videoUrl) return null;
+
+                return (
+                  <motion.article
+                    key={video?._id || `${videoUrl}-${index}`}
+                    initial={{ opacity: 0, y: 25 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{
+                      duration: 0.5,
+                      delay: index * 0.1,
+                    }}
+                    whileHover={{ y: -6 }}
+                    className="group overflow-hidden rounded-3xl border border-sky-100 bg-white shadow-sm transition-shadow hover:shadow-xl hover:shadow-sky-100"
+                  >
+                    <div className="relative aspect-[4/3] overflow-hidden bg-slate-900">
+                      <video
+                        key={videoUrl}
+                        src={videoUrl}
+                        poster={getVideoPoster(video)}
+                        controls={isPlaying}
+                        playsInline
+                        preload="metadata"
+                        muted={mutedVideos[index] ?? true}
+                        className="h-full w-full object-cover"
+                        onPlay={() => setPlayingVideo(index)}
+                        onPause={() =>
+                          setPlayingVideo((current) =>
+                            current === index ? null : current,
+                          )
+                        }
+                      />
+
+                      {!isPlaying && (
+                        <button
+                          type="button"
+                          onClick={() => setPlayingVideo(index)}
+                          className="absolute inset-0 flex items-center justify-center bg-black/15 transition hover:bg-black/30"
+                          aria-label="Play video"
+                        >
+                          <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/50 bg-white/90 text-sky-600 shadow-xl transition group-hover:scale-110">
+                            <Play size={27} fill="currentColor" />
+                          </span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => toggleMute(index)}
+                        className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition hover:bg-black/70"
+                        aria-label="Toggle mute"
+                      >
+                        {(mutedVideos[index] ?? true) ? (
+                          <VolumeX size={18} />
+                        ) : (
+                          <Volume2 size={18} />
+                        )}
+                      </button>
+
+                      <div className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-black/55 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
+                        <span className="flex items-center gap-1.5">
+                          {isPlaying ? (
+                            <>
+                              <Pause size={13} />
+                              Now Playing
+                            </>
+                          ) : (
+                            <>
+                              <Play size={13} />
+                              Watch Video
+                            </>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-5">
+                      <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-sky-500">
+                        <Sparkles size={14} />
+                        Beauty & Fashion
+                      </div>
+
+                      <h3 className="text-lg font-bold text-slate-800">
+                        {getVideoTitle(video, index)}
+                      </h3>
+
+                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">
+                        {getVideoDescription(video)}
+                      </p>
+                    </div>
+                  </motion.article>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
+
+      {/* PROMOTION */}
 
       <section className="px-5 py-20 md:px-8 md:py-24">
         <motion.div
@@ -460,14 +542,18 @@ function Home() {
         >
           <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full border-[40px] border-white/10" />
           <div className="absolute -bottom-24 -left-16 h-64 w-64 rounded-full border-[40px] border-white/10" />
+
           <div className="relative z-10 mx-auto max-w-2xl">
             <Sparkles size={32} className="mx-auto mb-5" />
+
             <h2 className="font-serif text-3xl font-bold sm:text-5xl">
               {content.promotionTitle}
             </h2>
+
             <p className="mx-auto mt-5 max-w-xl leading-7 text-white/90">
               {content.promotionDescription}
             </p>
+
             <Link
               to="/products"
               className="mt-8 inline-flex items-center gap-3 rounded-full bg-white px-8 py-4 font-semibold text-sky-600 shadow-lg transition hover:-translate-y-1 hover:bg-sky-50"
@@ -478,6 +564,8 @@ function Home() {
         </motion.div>
       </section>
 
+      {/* FOOTER */}
+
       <footer className="border-t border-sky-100 bg-sky-50">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-5 px-5 py-8 text-center sm:flex-row sm:text-left md:px-8">
           <Link
@@ -487,19 +575,24 @@ function Home() {
             {content.brand}
             <span className="text-sky-400">.</span>
           </Link>
+
           <p className="text-sm text-slate-500">{content.footerDescription}</p>
+
           <div className="flex gap-5 text-sm font-medium text-slate-600">
             <Link to="/products" className="transition hover:text-sky-500">
               Products
             </Link>
+
             <Link to="/consultation" className="transition hover:text-sky-500">
               Consultation
             </Link>
+
             <Link to="/connect" className="transition hover:text-sky-500">
               Contact
             </Link>
           </div>
         </div>
+
         <div className="border-t border-sky-100 px-5 py-4 text-center text-xs text-slate-500">
           © {new Date().getFullYear()} {content.brand}. All rights reserved.
         </div>
