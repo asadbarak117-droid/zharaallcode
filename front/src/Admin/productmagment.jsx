@@ -590,15 +590,23 @@ export default function ProductManagement() {
         : [],
     };
 
+    console.log("API URL:", API_URL);
+    console.log("VIDEOS SENT:", payload.videos);
+
     const response = await fetch(API_URL, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
+        Accept: "application/json",
       },
+      cache: "no-store",
       body: JSON.stringify(payload),
     });
 
     const data = await readResponse(response);
+
+    console.log("PUT STATUS:", response.status);
+    console.log("PUT RESPONSE:", data);
 
     if (!response.ok) {
       throw new Error(
@@ -608,16 +616,24 @@ export default function ProductManagement() {
 
     const verifyResponse = await fetch(API_URL, {
       method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
       cache: "no-store",
     });
 
     const verifyData = await readResponse(verifyResponse);
 
+    console.log("GET STATUS:", verifyResponse.status);
+    console.log("GET RESPONSE:", verifyData);
+
     if (!verifyResponse.ok) {
-      throw new Error("Could not verify the saved settings.");
+      throw new Error("Could not verify saved settings.");
     }
 
     const verifiedConfig = normalizeConfig(verifyData);
+
+    console.log("VIDEOS AFTER SAVE:", verifiedConfig.videos);
 
     const savedUrls = new Set(verifiedConfig.videos.map((video) => video.url));
 
@@ -626,8 +642,10 @@ export default function ProductManagement() {
     );
 
     if (missingVideos.length > 0) {
+      console.error("MISSING VIDEOS:", missingVideos);
+
       throw new Error(
-        `${missingVideos.length} video(s) were not found after saving. Check the backend videos field.`,
+        `${missingVideos.length} video(s) were not found in the database after saving.`,
       );
     }
 
