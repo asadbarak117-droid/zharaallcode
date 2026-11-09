@@ -21,25 +21,32 @@ const allowedFields = [
   "contactSection",
 ];
 
-const validateArray = (value, fieldName) => {
+function validateArray(value, fieldName) {
   if (value !== undefined && !Array.isArray(value)) {
     return `${fieldName} must be an array.`;
   }
 
   return null;
-};
+}
+
+async function getProductSection() {
+  let section = await ProductSection.findOne().sort({ createdAt: 1 });
+
+  if (!section) {
+    section = await ProductSection.create({});
+  }
+
+  return section;
+}
 
 // GET PRODUCT SECTION
 router.get("/", async (req, res) => {
   try {
-    let section = await ProductSection.findOne().lean();
+    const section = await getProductSection();
 
-    if (!section) {
-      const created = await ProductSection.create({});
-      section = created.toObject();
-    }
+    res.set("Cache-Control", "no-store");
 
-    return res.status(200).json(section);
+    return res.status(200).json(section.toObject());
   } catch (error) {
     console.error("Product section GET error:", error);
 
@@ -98,7 +105,6 @@ router.put("/", async (req, res) => {
       }
     }
 
-    // VALIDATE AND PREPARE VIDEOS
     if (updates.videos !== undefined) {
       updates.videos = updates.videos.map((video, index) => {
         if (!video || typeof video !== "object" || Array.isArray(video)) {
@@ -107,6 +113,18 @@ router.put("/", async (req, res) => {
 
         if (typeof video.url !== "string" || !video.url.trim()) {
           throw new Error(`Video ${index + 1} must have a valid URL.`);
+        }
+
+        let parsedUrl;
+
+        try {
+          parsedUrl = new URL(video.url.trim());
+        } catch {
+          throw new Error(`Video ${index + 1} URL is invalid.`);
+        }
+
+        if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+          throw new Error(`Video ${index + 1} URL must use HTTP or HTTPS.`);
         }
 
         if (video.title !== undefined && typeof video.title !== "string") {
@@ -135,27 +153,25 @@ router.put("/", async (req, res) => {
           id: video.id || "",
           title: video.title || "",
           description: video.description || "",
-          url: video.url.trim(),
+          url: parsedUrl.href,
           publicId: video.publicId || "",
         };
       });
     }
 
-    let section = await ProductSection.findOne();
+    const section = await getProductSection();
 
-    if (!section) {
-      section = new ProductSection();
-    }
-
-    // UPDATE ONLY FIELDS SENT BY FRONTEND
     for (const [field, value] of Object.entries(updates)) {
       section.set(field, value);
     }
 
     await section.save();
 
-    // READ THE SAVED DATA AGAIN FROM DATABASE
     const savedSection = await ProductSection.findById(section._id).lean();
+
+    if (!savedSection) {
+      throw new Error("Saved product section could not be retrieved.");
+    }
 
     return res.status(200).json({
       success: true,
