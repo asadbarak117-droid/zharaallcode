@@ -9,9 +9,6 @@ import {
   X,
   MessageCircle,
   Send,
-  Video,
-  RefreshCw,
-  Play,
 } from "lucide-react";
 
 const API_URL = "https://zharaallcode.onrender.com/api/productsection";
@@ -74,10 +71,24 @@ function normalizeProduct(product, index) {
 }
 
 function normalizeConfig(data) {
-  let source = data?.data ?? data?.content ?? data?.config ?? data;
+  let source = data;
 
-  if (source?.data && typeof source.data === "object") {
-    source = source.data;
+  for (let i = 0; i < 5; i++) {
+    if (!source || typeof source !== "object" || Array.isArray(source)) {
+      break;
+    }
+
+    if (Array.isArray(source.products) || Array.isArray(source.categories)) {
+      break;
+    }
+
+    const nested = source.data ?? source.content ?? source.config;
+
+    if (!nested || typeof nested !== "object") {
+      break;
+    }
+
+    source = nested;
   }
 
   if (!source || typeof source !== "object" || Array.isArray(source)) {
@@ -107,7 +118,6 @@ function normalizeConfig(data) {
       ? source.categoryDetails
       : [],
     products: Array.isArray(source.products) ? source.products : [],
-    videos: Array.isArray(source.videos) ? source.videos : [],
     comments: Array.isArray(source.comments) ? source.comments : [],
     searchSection: {
       enabled: source.searchSection?.enabled ?? true,
@@ -136,26 +146,11 @@ function normalizeConfig(data) {
   };
 }
 
-function normalizeVideo(video, index) {
-  const item = video && typeof video === "object" ? video : {};
-
-  return {
-    id: String(item._id || item.id || item.publicId || `video-${index}`),
-    title: item.title || item.name || `Beauty Video ${index + 1}`,
-    description: item.description || "",
-    url: String(item.url || item.videoUrl || item.secure_url || "").trim(),
-    thumbnail: item.thumbnail || item.thumbnailUrl || "",
-  };
-}
-
 export default function Products() {
   const [config, setConfig] = useState(() => normalizeConfig({}));
   const [products, setProducts] = useState([]);
-  const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [videoLoading, setVideoLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [videoError, setVideoError] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Products");
@@ -219,9 +214,7 @@ export default function Products() {
   const loadProductSection = async () => {
     try {
       setLoading(true);
-      setVideoLoading(true);
       setLoadError("");
-      setVideoError("");
 
       const response = await fetch(API_URL, {
         method: "GET",
@@ -244,12 +237,6 @@ export default function Products() {
         data.products.map((product, index) => normalizeProduct(product, index)),
       );
 
-      const normalizedVideos = data.videos
-        .map((video, index) => normalizeVideo(video, index))
-        .filter((video) => video.url);
-
-      setVideos(normalizedVideos);
-
       setComments(
         data.comments
           .filter((comment) => comment.approved !== false)
@@ -264,13 +251,9 @@ export default function Products() {
       );
     } catch (error) {
       console.error("Could not load product section:", error);
-      setLoadError(
-        "Could not load products and beauty videos. Please try again.",
-      );
-      setVideoError("Could not load videos. Please try again.");
+      setLoadError("Could not load products. Please try again.");
     } finally {
       setLoading(false);
-      setVideoLoading(false);
     }
   };
 
@@ -477,141 +460,6 @@ export default function Products() {
                 </div>
               </motion.button>
             ))}
-          </div>
-        </section>
-
-        <section
-          className="relative mb-20 overflow-hidden rounded-[2rem] bg-slate-950 px-5 py-10 text-white sm:px-8 md:py-14"
-          id="beauty-videos"
-        >
-          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-sky-500/20 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
-
-          <div className="relative z-10">
-            <div className="mb-8 flex flex-wrap items-end justify-between gap-5">
-              <div>
-                <span className="inline-flex items-center gap-2 rounded-full border border-sky-300/20 bg-sky-300/10 px-4 py-2 text-xs font-bold uppercase tracking-widest text-sky-200">
-                  <Sparkles size={14} />
-                  Beauty Inspiration
-                </span>
-
-                <h2 className="mt-4 text-3xl font-bold sm:text-4xl">
-                  Beauty Videos
-                </h2>
-
-                <p className="mt-3 max-w-xl leading-7 text-slate-300">
-                  Tutorials, product demonstrations and beauty inspiration
-                  selected for you by LEDORA.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-sky-100">
-                <Video size={17} />
-                {videos.length} Videos
-              </div>
-            </div>
-
-            {videoLoading ? (
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {[1, 2, 3].map((item) => (
-                  <div
-                    key={item}
-                    className="overflow-hidden rounded-2xl border border-white/10 bg-white/5"
-                  >
-                    <div className="aspect-video animate-pulse bg-white/10" />
-                    <div className="space-y-3 p-5">
-                      <div className="h-5 w-3/4 animate-pulse rounded bg-white/10" />
-                      <div className="h-4 w-full animate-pulse rounded bg-white/10" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : videoError ? (
-              <div className="rounded-2xl border border-rose-300/20 bg-rose-300/10 px-6 py-12 text-center">
-                <Video size={34} className="mx-auto text-rose-200" />
-                <p className="mt-4 text-slate-200">{videoError}</p>
-                <button
-                  onClick={loadProductSection}
-                  className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-bold text-slate-900 transition hover:bg-sky-100"
-                >
-                  <RefreshCw size={16} />
-                  Try Again
-                </button>
-              </div>
-            ) : videos.length > 0 ? (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {videos.map((video) => (
-                  <motion.article
-                    key={video.id}
-                    initial={{ opacity: 0, y: 18 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.1 }}
-                    whileHover={{ y: -5 }}
-                    className="group overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] shadow-lg transition hover:border-sky-300/40 hover:bg-white/[0.09]"
-                  >
-                    <div className="relative aspect-video overflow-hidden bg-black">
-                      <video
-                        src={video.url}
-                        poster={video.thumbnail || undefined}
-                        controls
-                        playsInline
-                        preload="metadata"
-                        className="h-full w-full object-contain"
-                        onError={() => {
-                          console.error("Video playback failed:", video.url);
-                        }}
-                      />
-
-                      <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-xs font-bold text-white backdrop-blur">
-                        <Play size={12} fill="currentColor" />
-                        LEDORA
-                      </div>
-                    </div>
-
-                    <div className="p-5">
-                      <div className="mb-3 flex items-center justify-between">
-                        <span className="rounded-full bg-sky-300/10 px-3 py-1 text-xs font-bold text-sky-200">
-                          Beauty & Care
-                        </span>
-                        <Video size={18} className="text-sky-300" />
-                      </div>
-
-                      <h3 className="text-lg font-bold text-white transition group-hover:text-sky-200">
-                        {video.title}
-                      </h3>
-
-                      <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-300">
-                        {video.description ||
-                          "Discover more from LEDORA Beauty."}
-                      </p>
-                    </div>
-                  </motion.article>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-white/20 bg-white/[0.04] px-6 py-14 text-center">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-300/10 text-sky-200">
-                  <Video size={30} />
-                </div>
-
-                <h3 className="mt-5 text-xl font-bold text-white">
-                  No Videos Yet
-                </h3>
-
-                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-300">
-                  Beauty tutorials and product demonstrations will appear here
-                  when they are uploaded by LEDORA.
-                </p>
-
-                <button
-                  onClick={loadProductSection}
-                  className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-slate-900"
-                >
-                  <RefreshCw size={16} />
-                  Refresh Videos
-                </button>
-              </div>
-            )}
           </div>
         </section>
 
